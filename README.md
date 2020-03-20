@@ -1,28 +1,27 @@
 # vision-tools
 ## IBM Visual Insights API Tools
-
 IBM Visual Insights makes computer vision with deep learning more accessible to business users. IBM Visual Insights
 includes an intuitive toolset that empowers subject matter experts to label, train, and deploy deep learning vision
 models, without coding or deep learning expertise. This repo provides a developer client API and command line (CLI) for
 an existing installation. To learn more about IBM Visual Insights, check out the
-[IBM Marketplace](https://www.ibm.com/us-en/marketplace/ibm-powerai-vision).
+[IBM Marketplace](https://www.ibm.com/us-en/marketplace/ibm-powerai-vision)
 
-The IBM Visual Insights client API has two parts; a Python API piece and a command line (CLI) piece.
+The IBM Visual Insights API tools has two parts; a Python API piece and a command line (CLI) piece.
 The CLI piece uses the API piece to communicate with an IBM Visual Insights server. The CLI
-is meant to make it easier to do automation via shell scripts, while the API is meant to make it easier to
+is meant to make it easier to do automation via shell scripts while the API is meant to make it easier to
 do automation scripting in Python.
 
 The goal is that the tools will support all of the endpoints and options available from the IBM
-Visual Insights REST API. However, not everything is supported at this time.
+Visual Insight ReST API. However, not everything is supported at this time.
 
 ## Setup
 ### Setting up Access to the Tools
 It is a long term goal to create a PIP install image to make the tools easier to install and use.
-But at this time, the following steps can be used to setup and use the IBM Visual Insights tools. 
-These steps assume that the cloned repo is in your home directory ("__$HOME__").
+But at this time, the following steps can be used to setup and use the IBM Visual Insight Tools.
+(these steps assume that the cloned repo is in your home directory ("`$HOME`"))
 
- 1. Ensure that Python 3 is at version 3.6 or later (e.g. `python3 -V`). If it is not, upgrade Python 
- using your favorite install manager (pip, conda, etc.).
+ 1. Ensure Python is at version 3.6 or above (e.g. `python3 -V`). If it is not, upgrade python 
+ using your favorite install manager (pip, conda, etc.)
  1. Ensure that the Python _requests_ package is installed. (e.g. `pip install requests`)
  1. Clone this repo. (e.g. `git clone git@github.com:IBM/vision-tools.git`)
  1. Add the cloned repo's `cli` directory to your `PATH` environment variable.
@@ -30,21 +29,8 @@ These steps assume that the cloned repo is in your home directory ("__$HOME__").
  1. Add the cloned repos's `api` directory to your `PYTHONPATH` environment variable.
     (e.g. `export PYTHONPATH=$PYTHONPATH:$HOME/vision-tools/api`)
 
-At this point, the Visual Insights API CLI tools should be accessible. Run `vision --help` to verify that the
-command is found. `vision datasets --help` can be run to ensure that sub-commands are accessible.
-
-### Shortcut to Running `vision`
-
-Assume that the target server is an IBM Visual Insights standalone server with host name `my-server.your-company.com`.
-Assume that the user is `janedoe` and her password is `Vis10nDemo`.
-Perform the following steps for the easiest use:
- 1. set VAPI_HOST -- `export VAPI_HOST=my-server.your-company.com`
- 2. set VAPI_TOKEN -- `export VAPI_TOKEN=$(vision users token --user janedo --password Vis10nDemo)`
- 3. ensure token is set -- `echo $VAPI_TOKEN`
- 4. @todo question from MCH: What happens if visual insights is running on a custom path on the server????
-
-If all went well, `vision` should report results from the server; try `vision datasets list --summary`.
-If something failed, continue reading -- specifically the "debugging" section below.
+At this point, the Visual Insights API CLI tools should be accessible. Run `vision --help` to see that the
+command can be found. `vision datasets --help` can be run to ensure that sub-commands are accessible.
 
 ## Using the CLI Tool
 ### Introduction
@@ -117,12 +103,44 @@ the `$VAPI_INSTANCE` environment variable will be needed to adjust the generated
 
 If a different port is needed, that port can be included with the hostname.
 
+### Quick Start Summary
+#### Using a Standalone Server with "visual-insights" URI
+
+Assume that the target server is an IBM Visual Insights standalone server with host name `my-server.your-company.com`,
+with a base URL of "`https://my-server.your-company.com/visual-insights`".<br>
+Assume that the user is `janedoe` and her password is `Vis10nDemo`.
+
+Perform the following steps for the easiest use:
+ 1. set VAPI_HOST -- `export VAPI_HOST=my-server.your-company.com`
+ 2. set VAPI_TOKEN -- `export VAPI_TOKEN=$(vision users token --user janedo --password Vis10nDemo)`
+ 3. ensure token is set -- `echo $VAPI_TOKEN`
+
+If all went well, `vision` should report results from the server; try `vision datasets list --summary`.
+If something failed, see the "debugging" section below.
+
+#### Using a Server With Different URI (e.g. a Cloud Instance)
+
+Assume that the target server has a host name of `my-provider.cloud-service.com` and the URI to access
+the Visual Insights Application is `my-visual-insights-v120`.<br>
+Assume that the user is `janedoe` and her password is `Vis10nDemo`.
+
+Perform the following steps for the easiest use:
+ 1. set VAPI_HOST -- `export VAPI_HOST=my-server.your-company.com`
+ 2. set VAPI_TOKEN -- `export VAPI_TOKEN=$(vision users token --user janedo --password Vis10nDemo)`
+ 3. set VAPI_INSTANCE -- `export VAPI_INSTANCE="my-visual-insights-v120"`
+ 4. ensure token is set -- `echo $VAPI_TOKEN`
+
+Note that the only difference is setting the `VAPI_INSTANCE` environment variable.
+
+If all went well, `vision` should report results from the server; try `vision datasets list --summary`.
+If something failed, see the "debugging" section below.
+
 ### Debugging
 Two flags exist to assist with debugging. The `--httpdetail` flag and the `--log` flag.
 
 The `--httpdetail` flag causes information from the `requests` package to be printed to STDERR.
-This information include the entire HTTP request that was sent to the server. The request
-information include all of the Headers that were sent. It can be quite useful to examine this
+This information includes the entire HTTP request that was sent to the server. The request
+information includes all of the Headers that were sent. It can be quite useful to examine this
 request information to ensure that information is accurate (e.g. host name, URL, input parameters, etc).
 Be forewarned that if used when uploading a file (or importing a dataset or model), the detail will
 include all of the encoded file contents. So it can be quite large in these cases.
