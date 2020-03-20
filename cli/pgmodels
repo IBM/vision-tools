@@ -1,0 +1,188 @@
+#!/usr/bin/env python
+import sys
+
+if sys.hexversion < 0x02060000:
+    sys.exit("Python 3.3 or newer is required to run this program.")
+
+import oldPaiv
+import os
+import argparse
+import json
+import textwrap
+
+server = None
+show_httpdetail = False
+
+
+def reportApiError(msg=None):
+    httpstatus = server.get_status_code()
+    httpreq = server.get_http_request_str()
+    try:
+        errjson = textwrap.indent(json.dumps(server.json(), indent=2), " " * 8)
+    except:
+        errjson = None
+
+    if msg is not None:
+        print(msg, file=sys.stderr)
+
+    print("    HTTP status code : {}".format(httpstatus), file=sys.stderr)
+    print("    Exception Info:", file=sys.stderr)
+    print(errjson, file=sys.stderr)
+    print("    HTTP request:", file=sys.stderr)
+    print(httpreq, file=sys.stderr)
+
+    exit(2)
+
+
+def reportUsageError(msg):
+    print(msg, file=sys.stderr)
+    exit(1)
+
+
+def reportSuccess(msg=None, body=None):
+
+    if body is None:
+        try:
+            body = server.json()
+            rspjson = json.dumps(server.json(), indent=2)
+        except:
+            body = None
+    try:
+        rspjson = json.dumps(body, indent=2)
+    except:
+        rspjson = body
+
+    if msg is not None:
+        print(msg)
+    print(rspjson)
+
+    if show_httpdetail:
+        httpstatus = server.get_status_code()
+        httpreq = server.get_http_request_str()
+        print("    HTTP status code : {}".format(httpstatus), file=sys.stderr)
+        print("    HTTP request:", file=sys.stderr)
+        print(httpreq, file=sys.stderr)
+
+
+def change(params):
+    pgid = getattr(params, "pgid", None)
+
+    kwargs = vars(params)
+    kwargs.pop("cmd")  # Don't want to send 'cmd' to the server layer
+
+    rsp = server.change_project_group(pgid, **kwargs)
+    if rsp is None:
+        reportApiError("Failure attempting to change project group id '{}'".format(pgid))
+    else:
+        reportSuccess("Changed project group id '{}'".format(pgid))
+
+
+def list(params):
+    pgid = getattr(params, "pgid", None)
+    models = server.list_project_group_models(pgid)
+    if models is None:
+        reportApiError("Failure attempting to list project group models")
+    else:
+        reportSuccess(None, body=models)
+
+
+def show(params):
+    pgid = getattr(params, "pgid", None)
+    prodStatus = getattr(params, "prod_status", None)
+    rsp = server.pg_get_latest_model(pgid, prodStatus)
+    if rsp is None:
+        reportApiError("Failure attempting to get latest model for project group id '{}' ({})".format(pgid, prodStatus))
+    else:
+        reportSuccess()
+
+
+def predict(params):
+    pgid = getattr(params, "pgid", None)
+    rsp = None
+    if rsp is None:
+        reportApiError("Predict not implemented yet")
+    else:
+        reportSuccess(None)
+
+
+def download_asset(params):
+    pgid = getattr(params, "pgid", None)
+    dsid = getattr(params, "model_id", None)
+    modelid = getattr(params, "modelid", None)
+
+    if dsid is None and modelid is None:
+        reportUsageError("No dataset id or model id provided during 'remove' operation")
+
+    if dsid is not None:
+        rsp = server.change_dataset(dsid, project_group_id=pgid)
+        id = dsid
+        resource = "dataset"
+    else:
+        rsp = server.change_trained_model(modelid, project_group_id=pgid)
+        id = modelid
+        resource = "model"
+
+    if rsp is None:
+        reportApiError("Failure attempting to remove {} id {} from project group id '{}'".format(resource, id, pgid))
+    else:
+        reportSuccess("Successfully removed {} id {} from project group id '{}'".format(resource, id, pgid))
+
+
+def add_common_flags(parser):
+    parser.add_argument("--pgid", action="store", required=True,
+                        help="Project Group UUID")
+    parser.add_argument("--prod_status", action="store",
+                        help="desired Production status of the target model")
+
+
+def add_predict_flags(parser):
+    add_common_flags(parser)
+    parser.add_argument("--model_id", action="store",
+                        help="dataset id to add/remove to/from the project group")
+    parser.add_argument("--modelid", action="store",
+                        help="model id to add/remove to/from the project group")
+
+
+def add_download_flags(parser):
+    add_common_flags(parser)
+    parser.add_argument("--assettype", action="store",
+                        help="asset to download")
+
+
+def get_valid_input():
+    # Main parser requires subcommand.
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="cmd", required=True)
+    parser.add_argument('--httpdetail', action="store_true", default=False,
+                        help="Flag to get HTTP request detail information")
+
+    # Flags for the list sub-command
+    list_parser = subparsers.add_parser('list', help="List models associated with this project group")
+    add_common_flags(list_parser)
+
+    # flags for the show sub-command
+    show_parser = subparsers.add_parser('show', help="Show details of a project group model")
+    add_common_flags(show_parser)
+
+    # flags for the download sub-command
+    download_parser = subparsers.add_parser('downloadasset', help="Download an asset of a project group model")
+    add_download_flags(download_parser)
+
+    # flags for the predict sub-command
+    predict_parser = subparsers.add_parser('predict',
+                                          help="Do a prediction on the latest deployed model for a project group")
+    add_predict_flags(predict_parser)
+
+    return parser.parse_args()
+
+
+def main():
+    global server
+    args = get_valid_input()
+    if args is not None:
+        server = oldPaiv.paiv(os.environ["VAPI_HOST"], os.environ["VAPI_TOKEN"])
+        globals()[args.cmd.replace("-", "_")](args)
+
+
+if __name__ == "__main__":
+    main()
