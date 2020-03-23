@@ -23,7 +23,7 @@
 # vctest
 # vc-Test1ing-PW!
 #
-set -x
+
 declare -a TST_LIST
 VCT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 BATS_HOME=$(cd "${VCT_DIR}/bats" >/dev/null 2>&1 && pwd )

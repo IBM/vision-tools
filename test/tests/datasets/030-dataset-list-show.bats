@@ -34,7 +34,7 @@
 
 load "${BATS_HOME}/test/libs/bats-support/load.bash"
 load "${BATS_HOME}/test/libs/bats-assert/load.bash"
-load "${VCT_DIR}/helpers/test_helpers"
+load "${VCT_DIR}/helpers/test_helpers.bash"
 
 export BATS_TEST_FILE_BASENAME=$(basename ${BATS_TEST_FILENAME})
 export VCT_DSID_FILE_1="${VCT_WK_DIR}/DS_LS_1"
