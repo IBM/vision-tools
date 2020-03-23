@@ -57,13 +57,13 @@ export VCT_ID_FILE="${VCT_WK_DIR}/${BATS_TEST_FILE_BASENAME}-ids"
 
 @test "DLTask list summary with no tasks" {
     run vision dltask list --summary
-    assert_failure
+    assert_success
     assert_output "0 items"
 }
 
 @test "DLTask list default output with no tasks" {
-    run vision dltask list --summary
-    assert_failure
+    run vision dltask list
+    assert_success
     assert_output "[]"
 }
 
@@ -155,7 +155,7 @@ export VCT_ID_FILE="${VCT_WK_DIR}/${BATS_TEST_FILE_BASENAME}-ids"
 
     # regenerate lines array containing only task names
     printf "%s\n" "${lines[@]}" >${VCT_WK_DIR}/dltask-ld.out
-    run awk -F':' '/ "name"/ {print $2}' ${VCT_WK_DIR}/dltask-ld.out
+    run awk -F':' '/^    "name"/ {print $2}' ${VCT_WK_DIR}/dltask-ld.out
 
     assert_line -p -n 0 "dltask-cod"
     assert_line -p -n 1 "dltask-cic"
@@ -180,7 +180,7 @@ export VCT_ID_FILE="${VCT_WK_DIR}/${BATS_TEST_FILE_BASENAME}-ids"
 
     # regenerate lines array containing only task names
     printf "%s\n" "${lines[@]}" >${VCT_WK_DIR}/task-lsd.out
-    run awk -F':' '/ "original_file_name"/ {print $2}' ${VCT_WK_DIR}/task-lsd.out
+    run awk -F':' '/^    "name"/ {print $2}' ${VCT_WK_DIR}/task-lsd.out
 
     assert_line -p -n 0 "dltask-cic"
     assert_line -p -n 1 "dltask-cod"
@@ -196,13 +196,13 @@ export VCT_ID_FILE="${VCT_WK_DIR}/${BATS_TEST_FILE_BASENAME}-ids"
 @test "DLTask show with bad Task Id" {
     run vision dltask show --taskid 123-def
     assert_failure
-    assert_output -p "Failure attempting to get task id"
-    assert_output -p "Could not find task"
+    assert_output -p "Failure attempting to get dltask id"
+    #assert_output -p "Could not find task"
 }
 
 
 @test "DLTask show" {
-    taskid=$(get_key_value ${VCT_DSID_FILE} cic-min-args-task)
+    taskid=$(get_key_value ${VCT_ID_FILE} cic-min-args-task)
 
     run vision dltask show --task ${taskid}
     assert_success
@@ -220,19 +220,22 @@ export VCT_ID_FILE="${VCT_WK_DIR}/${BATS_TEST_FILE_BASENAME}-ids"
 @test "DLTask delete with bad Task Id" {
     run vision dltask delete --taskid bad-789
     assert_failure
-    assert_output -p "Failure attempting to delete task id"
+    assert_output -p "Failure attempting to delete dltask id"
 }
 
 
 @test "DLTask delete" {
-    taskid=$(get_key_value ${VCT_DSID_FILE} cic-min-args-task)
+    taskid=$(get_key_value ${VCT_ID_FILE} cic-min-args-task)
 
     run vision dltask delete --taskid ${taskid}
     assert_success
-    assert_output -p "Deleted task id "
+    assert_output -p "Deleted dltask id "
 }
 
 @test "DLTask train Tests Cleanup" {
+    tid=$(get_key_value ${VCT_ID_FILE} "cic-min-args-task")
+    [ -z $tid ] || run vision dltask delete --taskid $tid
+
     tid=$(get_key_value ${VCT_ID_FILE} "cod-on-cic-task")
     [ -z $tid ] || run vision dltask delete --taskid $tid
 
