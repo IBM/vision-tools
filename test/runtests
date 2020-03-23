@@ -20,8 +20,6 @@
 
 #
 # This script is the master control from running VAPI CLI test suite
-# vctest
-# vc-Test1ing-PW!
 #
 
 declare -a TST_LIST
