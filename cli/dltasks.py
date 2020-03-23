@@ -43,16 +43,16 @@ def create(params):
     """ Creating of training tasks is performed via the command 'datasets train"""
 
     print("Create training tasks by using the 'datasets train' command.", file=sys.stderr)
-
+    return 1
 
 # ---  Delete Operation  ---------------------------------------------
 delete_usage = """
 Usage:
-  dltasks delete --taskid=<task-id>
+  dltasks delete (--taskid=<task-id> | --id=<task_id>)
 
 Where:
-  --taskid   A required parameter that identifies the dltask to be
-           deleted.
+  --taskid | --id    Either '--taskid' or '--id' is required and identifies the dltask
+           to be deleted.
 
 Deletes the indicated dltask. At this time, only 1 dltask can be 
 deleted at a time."""
@@ -66,15 +66,15 @@ def delete(params):
     taskid = params.get("--taskid", "missing_id")
     rsp = server.dl_tasks.delete(taskid)
     if rsp is None:
-        reportApiError(server, f"Failure attempting to delete dataset id '{taskid}'")
+        reportApiError(server, f"Failure attempting to delete dltask id '{taskid}'")
     else:
-        reportSuccess(server, f"Deleted dataset id '{taskid}'")
+        reportSuccess(server, f"Deleted dltask id '{taskid}'")
 
 
 # ---  List Operation  -----------------------------------------------
 list_usage = """
 Usage:
-  dltasks list [--pgid=<project-group-id>...] [--status=<status>] [--summary]
+  dltasks list [--pgid=<project-group-id>...] [--status=<status>] [--sort=<sort-string>]  [--summary]
 
 Where:
   --pgid   An optional parameter that identifies 1 or more project groups
@@ -82,7 +82,10 @@ Where:
            be comma separated
   --status An optional parameter to identifies the status by which to filter
            the list.
-  --summary Flag requesting only summary output for each dataset returned
+  --sort   Comma separated string of field names on which to sort.
+           Add " DESC" after a field name to change to a descending sort.
+           If adding " DESC", the field list must be enclosed in quotes.
+  --summary Flag requesting only summary output for each dltask returned
 
 Generates a JSON list of dltasks matching the input criteria."""
 
@@ -97,7 +100,8 @@ def report(params):
 
     expectedArgs = {
         '--pgid': 'pg_id',
-        '--status': 'status'
+        '--status': 'status',
+        '--sort': 'sortby'
     }
     kwargs = translate_flags(expectedArgs, params)
 
@@ -112,11 +116,11 @@ def report(params):
 # ---  Show Operation  -----------------------------------------------
 show_usage = """
 Usage:
-  dltasks show --taskid=<dltask-id>
+  dltasks show (--taskid=<dltask-id> | --id=<task_id>)
 
 Where:
-  --taskid  A required parameter that identifies the dltask to be
-            shown.
+  --taskid | --id    Either '--taskid' or '--id' is required and identifies the dltask
+           to be shown.
 
 Shows detail metadata information for the indicated dltask."""
 
@@ -135,11 +139,11 @@ def show(params):
 # ---  Status Operation  ---------------------------------------------
 status_usage = """
 Usage:
-  dltasks status --taskid=<dltask-id>
+  dltasks status (--taskid=<dltask-id> --id=<task_id>)
 
 Where:
-  --taskid  A required parameter that identifies the dltask whose
-            status records are to be retrieved.
+  --taskid | --id    Either '--taskid' or '--id' is required and identifies the dltask
+            whose status records are to be retrieved.
 
 Shows training status messages for the indicated dltask."""
 
@@ -191,7 +195,7 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, argv=params, cmd_flags=cmd_flags)
+    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--taskid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
         server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
         args.operation(args.op_params)

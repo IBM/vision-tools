@@ -1,0 +1,178 @@
+#!//usr/bin/env bash
+# IBM_PROLOG_BEGIN_TAG
+#
+# Copyright 2019,2020 IBM International Business Machines Corp.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#           http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+#  implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+#  IBM_PROLOG_END_TAG
+
+#
+# This script is the master control from running VAPI CLI test suite
+#
+
+declare -a TST_LIST
+VCT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BATS_HOME=$(cd "${VCT_DIR}/bats" >/dev/null 2>&1 && pwd )
+
+function usage
+{
+     cat <<EOM
+
+usage: runtests [ -h|--host <vision-server ]
+                [ -u|--user <vision-user> ]
+                [ -p|--password <user-password> ]
+                [ -i|--instance <base-URI ]
+                [ -b|--bats <bats_home_dir ]
+                [ test... ]
+
+  where:
+    --  '--host (-h)' is the hostname of the Vision Server. Must be specified
+        on the command line or with the VAPI_HOST environment variable.
+    --  '--user (-u)' must be an existing user on the
+        vision server (see "User/Password Notes" for more info).
+    --  '--password (-p)' is the password for the "vision-user" (see
+        "User/Password Notes" for more info)
+    --  '--instance (-i)' is the base URI. The instance can be supplied via
+        the VAPI_INSTANCE environment variable. If not supplied,
+        'visual-insights' will be used.
+    --  '-bats (-b)' identifies the root directory where BATS is installed.
+        The parameter must be specified on the command line or with the
+        BATS_HOME environment variable
+    --  'test' is an optional space separated list of directories and/or
+        test files. If not supplied, the entire test bucket will be run
+
+  User/Password NOTES:
+    -- user/password can be omitted if a vision token is obtained and stored
+       in the VAPI_TOKEN environment variable before running this script.
+    -- If user/password is omitted, some tests validating command user
+       and password flags will be skipped
+    -- It is recommended that a specific test user be used for testing and
+       that user has no entities (datasets, models, etc)  associated with
+       it on the test server
+
+CURRENT VALUES
+  - VAPI_HOST     : '${VAPI_HOST}'
+  - VAPI_INSTANCE : '${VAPI_INSTANCE}'
+  - VAPI_TOKEN    : '${VAPI_TOKEN}'
+  - BATS_HOME     : '${BATS_HOME}'
+
+EOM
+
+}
+
+getInput()
+{
+    # set default instance if not already defined
+    [ -z $VAPI_INSTANCE ] && VAPI_INSTANCE="visual-insights"
+
+    while [ $# -gt 0 ]
+    do
+        key="$1"
+
+        case $key in
+            -b|--bats)
+                BATS_HOME="$2"
+                shift # past argument
+                shift # past value
+                ;;
+            -h|--host)
+                VAPI_HOST="$2"
+                shift # past argument
+                shift # past value
+                ;;
+            -i|--instance)
+                VAPI_INSTANCE="$2"
+                shift # past argument
+                shift # past value
+                ;;
+            -u|--user)
+                VCT_USER="$2"
+                shift
+                shift
+                ;;
+            -p|--password)
+                VCT_PW="$2"
+                shift # past argument
+                shift # past value
+                ;;
+            -f|--format)
+                bats_flags="$2"
+                shift
+                shift
+                ;;
+            -*)    # unknown option
+                echo "Unknown option: $key"
+                usage
+                exit 2
+                ;;
+            *)   # assume these are tests
+                TST_LIST+=("$key")
+                shift
+
+        esac
+    done
+
+    if [ -z $VAPI_HOST ]
+    then
+        echo "ERROR: not test server specified." >&2
+        usage
+        exit 1
+    fi
+
+    if [ -n "${VCT_USER}" ] && [ -n "${VCT_PW}" ]
+    then
+        VAPI_TOKEN=$(vision users token --user $VCT_USER --password $VCT_PW)
+        if [ -z $VAPI_TOKEN ]
+        then
+            echo "ERROR: Failed to authenticate user '$VCT_USER' to server '$VAPI_HOST'" >&2
+        fi
+    fi
+
+    if [ -z $VAPI_TOKEN ]
+    then
+        echo "ERROR: No authentication token in env variable VAPI_TOKEN" >&2
+        usage
+        exit 1
+    fi
+}
+
+# shellcheck disable=SC2068
+getInput $@
+
+# Make sure everyting is exported so the tests have access
+export VAPI_HOST
+export VAPI_INSTANCE
+export VAPI_TOKEN
+export VCT_USER
+export VCT_PW
+export BATS_HOME
+
+# Export variables so tests know where the data and work dirs are
+export VCT_DIR
+export VCT_DATA_DIR=${VCT_DIR}/test-data
+export VCT_WK_DIR=${VCT_DIR}/test-wk-dir
+
+# Create a clean work dir
+rm -rf ${VCT_WK_DIR}
+mkdir -p ${VCT_WK_DIR}
+
+if [ ${#TST_LIST[@]} == 0 ]
+then
+    TST_LIST=(${VCT_DIR}/tests/datasets ${VCT_DIR}/tests/files ${VCT_DIR}/tests/trained-models)
+fi
+
+BATS=${BATS_HOME}/test/libs/bats/libexec/bats
+# shellcheck disable=SC2068
+$BATS ${bats_flags} ${TST_LIST[@]}
