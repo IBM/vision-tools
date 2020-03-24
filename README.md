@@ -26,8 +26,8 @@ But at this time, the following steps can be used to setup and use the IBM Visua
  1. Clone this repo. (e.g. `git clone git@github.com:IBM/vision-tools.git`)
  1. Add the cloned repo's `cli` directory to your `PATH` environment variable.
     (e.g. `PATH=$PATH:$HOME/vision-tools/cli`) 
- 1. Add the cloned repos's `api` directory to your `PYTHONPATH` environment variable.
-    (e.g. `export PYTHONPATH=$PYTHONPATH:$HOME/vision-tools/api`)
+ 1. Add the cloned repos's `lib` directory to your `PYTHONPATH` environment variable.
+    (e.g. `export PYTHONPATH=$PYTHONPATH:$HOME/vision-tools/lib`)
 
 At this point, the Visual Insights API CLI tools should be accessible. Run `vision --help` to see that the
 command can be found. `vision datasets --help` can be run to ensure that sub-commands are accessible.
