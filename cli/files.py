@@ -33,10 +33,10 @@ if sys.hexversion < 0x03060000:
 server = None
 
 # Common flag and description strings for usage statements
-ds_file_flags = "(--dsid=<dataset-id>)  (--fileid=<file-id>)"
+ds_file_flags = "(--dsid=<dataset-id>)  ((--fileid=<file-id> | --id=<file-id>))"
 ds_file_description = """   --dsid     Required parameter identifying the dataset to which
               the file belongs
-   --fileid   Required parameter identifying the targeted file"""
+   --fileid | --id   Required parameter identifying the targeted file"""
 
 #---  Upload Operation  ---------------------------------------------
 upload_usage = """
@@ -234,6 +234,53 @@ def download(params):
     return -1
 
 
+# ---  Copy Operation  ---------------------------------------------
+copy_usage = """
+Usage:   files copy --from=<origin_dataset_id> --to=<destination_dataset_id>  <file_ids>...
+
+Where:
+   --from   Required parameter that identifies the dataset that the
+            file(s) are to be copied from (the origin dataset)
+   --to     Required parameter that identifies the dataset that the
+            file(s) are to be copied to (the destination dataset)
+   <file_ids>   Space separated list of file ids to copied
+
+Copies one or more files from the origin dataset into the destination dataset.
+All associated category and annotations are copied; and created in the
+destination dataset if they do not already exist."""
+
+
+def copy(params):
+    """Handles the 'copy' operation for loading files into a dataset.
+
+    The "<file_paths>" from 'params' is passed to the library.
+    """
+
+    fromDs = params.get("--from", "missing-id")
+    toDs = params.get("--to", "")
+    rsp = server.files.copymove("copy", fromDs, toDs, params["<file_ids>"])
+    if rsp is None:
+        try:
+            results = server.json()["resultList"]
+            total = len(results)
+            success = sum([1 for x in results if "result" in x])
+            fail = total - success
+        except:
+            total = "?"
+            success = "?"
+            fail = "?"
+
+        reportApiError(server,
+                       f"Failure copying files from dataset {fromDs} to dataset {toDs}; total={total}, successes={success}, fails={fail}")
+    else:
+        try:
+            results = server.json()["resultList"]
+            total = len(results)
+        except:
+            total = "?"
+        reportSuccess(server, f"Successfully copied {total} files to dataset {toDs}")
+
+
 #---  savelabels Operation  -----------------------------------------
 savelabels_usage = f"""
 Usage:  files savelabels --dsid=<dataset_id> --fileid=<file_id> 
@@ -329,6 +376,7 @@ usage_stmt = {
     "delete": delete_usage,
     "show": show_usage,
     "download": download_usage,
+    "copy": copy_usage,
     "getlabels": getlabels_usage,
     "savelabels": savelabels_usage
 }
@@ -341,6 +389,7 @@ operation_map = {
     "delete": delete,
     "show": show,
     "download": download,
+    "copy": copy,
     "getlabels": getlabels,
     "savelabels": savelabels
 }
@@ -349,7 +398,7 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, argv=params,cmd_flags=cmd_flags)
+    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--fileid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
         server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
         args.operation(args.op_params)

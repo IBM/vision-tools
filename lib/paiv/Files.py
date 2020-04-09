@@ -77,3 +77,19 @@ class Files:
 
         uri = f"/datasets/{dsid}/files/{file_id}"
         return self.server.get(uri)
+
+    def copymove(self, operation, fromDs, toDs, file_ids):
+        """ Performs file copy/move of the indicated file ids.
+
+        :param operation  -- Identifies the operation to perform. Either "copy" or "move".
+        :param fromDs  -- UUID of the dataset containing the files to copy/move.
+        :param toDS  -- UUID of the dataset into which the files are to be copied/moved.
+        :param file_ids -- list of file UUIDs to copy/move."""
+
+        data = {
+            "target_dataset_id": toDs,
+            "files": file_ids
+        }
+
+        uri = f"/datasets/{fromDs}/files/{operation}"
+        return self.server.post(uri, json=data)
