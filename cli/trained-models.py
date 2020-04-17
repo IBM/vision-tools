@@ -18,7 +18,7 @@
 #
 #  IBM_PROLOG_END_TAG
 
-
+import logging as logger
 import sys
 import json
 import paiv
@@ -232,8 +232,7 @@ Where:
               The file must be an IBM Visual Insights (PowerAI Vision) Model
               export zip file.
 
-Import an exported dataset zip file to create the dataset in the server.
-Importing a dataset creates a new dataset."""
+Import an exported trained model zip file into the server.."""
 
 
 def import_model(params):
@@ -300,7 +299,7 @@ Where:
              from the output stream if a name is present. Otherwise
              the export will fail.
 
-Exports the indicated model for inference purposes."""
+Exports the indicated model to a zip file."""
 
 
 def export(params):
@@ -326,6 +325,7 @@ Where:
       list    -- report a list of trained models
       delete  -- delete one or more trained models
       show    -- show a specific trained model
+      import  -- import a previously exported trained model.
       deploy  -- deploys a trained model for inferencing purposes.
       download-asset -- downloads the indicated asset for the model
       export  -- exports the indicated model
@@ -361,7 +361,13 @@ def main(params, cmd_flags=None):
 
     args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--modelid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 

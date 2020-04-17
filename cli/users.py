@@ -18,7 +18,7 @@
 #
 #  IBM_PROLOG_END_TAG
 
-
+import logging as logger
 import sys
 import paiv
 import paiv_cli_utils
@@ -82,7 +82,13 @@ def main(params, cmd_flags=None):
         # When requesting a token, we need to ignore any existing token info
         if args.cmd_params["<operation>"] == "token":
             paiv_cli_utils.token = ""
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 

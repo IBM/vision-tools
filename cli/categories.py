@@ -18,26 +18,27 @@
 #
 #  IBM_PROLOG_END_TAG
 
-
+import logging as logger
+import sys
 import paiv
 import paiv_cli_utils
 from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
 
-ds_cat_flags = "(--ds_id=<dataset-id>)  (--cat_id=<cat-id>)"
-ds_cat_description = """   --ds_id    Required parameter identifying the dataset to which
+ds_cat_flags = "(--dsid=<dataset-id>)  (--catid=<cat-id> | --id=<cat-id>)"
+ds_cat_description = """   --dsid    Required parameter identifying the dataset to which
               the file belongs
-   --cat_id  Required parameter identifying the targeted category"""
+   --catid | --id  Required parameter identifying the targeted category"""
 
 server = None
 
 # ---  Create Operation  ---------------------------------------------
 create_usage = """
-Usage:   categories create --ds_id=<dataset_id>  --name=<name>
+Usage:   categories create --dsid=<dataset_id>  --name=<name>
 
 Where:
-   --ds_id   Required parameter that identifies the dataset into which the
+   --dsid   Required parameter that identifies the dataset into which the
              category is to be loaded
-   --name    categpru name
+   --name    category name
 
 Creates a new category in the given dataset.
 """
@@ -47,7 +48,7 @@ def create(params):
     """Handles the 'create' operation for adding a category to a dataset.
     """
 
-    dsid = params.get("--ds_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
     name = params.get("--name", "")
 
     rsp = server.categories.create(dsid, name)
@@ -74,8 +75,8 @@ def update(params):
     """Handles the 'change' operation for modifying a category.
     """
 
-    dsid = params.get("--ds_id", "missing_id")
-    catid = params.get("--cat_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
+    catid = params.get("--catid", "missing_id")
 
     expected_args = {'--name': 'name'}
     kwargs = translate_flags(expected_args, params)
@@ -101,10 +102,10 @@ deleted at a time.
 
 # ---  Delete Operation  ---------------------------------------------
 def delete(params):
-    """Deletes one category identified by the --ds_id and --cat_id parameters."""
+    """Deletes one category identified by the --dsid and --catid parameters."""
 
-    dsid = params.get("--ds_id", "missing_id")
-    catid = params.get("--cat_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
+    catid = params.get("--catid", "missing_id")
 
     rsp = server.categories.delete(dsid, catid)
     if rsp is None:
@@ -115,10 +116,10 @@ def delete(params):
 
 # ---  List/Report Operation  ----------------------------------------
 list_usage = f"""
-Usage:  categories list --ds_id=<dataset_id> [--sort=<sort-string>] [--summary]
+Usage:  categories list --dsid=<dataset_id> [--sort=<sort-string>] [--summary]
 
 Where:
-   --ds_id   Required parameter that identifies the dataset to which the
+   --dsid   Required parameter that identifies the dataset to which the
              categories belong.
    --sort    Comma separated string of field names on which to sort.
              Add " DESC" after a field name to change to a descending sort.
@@ -137,7 +138,7 @@ def report(params):
     if params["--summary"]:
         summaryFields = ["_id", "name"]
 
-    dsid = params.get("--ds_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
 
     expectedArgs = {'--sort': 'sortby'}
     kwargs = translate_flags(expectedArgs, params)
@@ -164,8 +165,8 @@ Shows detail metadata information for the indicated category.
 def show(params):
     """Handles the 'show' operation to show details of a single category"""
 
-    dsid = params.get("--ds_id", "missing_id")
-    catid = params.get("--cat_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
+    catid = params.get("--catid", "missing_id")
 
     rsp = server.categories.show(dsid, catid)
     if rsp is None:
@@ -189,8 +190,8 @@ def count(params):
     """Handles the 'count' operation for counting files associated with a category.
     """
 
-    dsid = params.get("--ds_id", "missing_id")
-    catid = params.get("--cat_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
+    catid = params.get("--catid", "missing_id")
 
     kwargs = {"action": "calculate"}
 
@@ -240,9 +241,15 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, argv=params, cmd_flags=cmd_flags)
+    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--catid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 
