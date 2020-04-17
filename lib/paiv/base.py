@@ -20,11 +20,14 @@
 
 import os
 import logging as logger
+import sys
 
 from paiv.server import Server
 from paiv.projects import Projects
 from paiv.Datasets import Datasets
 from paiv.Files import Files
+from paiv.FileUserKeys import FileUserKeys
+from paiv.FileUserMetadata import FileUserMetadata
 from paiv.Categories import Categories
 from paiv.ObjectTags import ObjectTags
 from paiv.Objectlabels import ObjectLabels
@@ -41,6 +44,7 @@ class Base:
 
     def __init__(self, host=None, token=None, instance=None, log_http_traffic=False):
         # Get required parameters from ENV if not provided on input
+        env_var = ""
         try:
             env_var = "VAPI_HOST"
             if host is None:
@@ -49,9 +53,8 @@ class Base:
             if token is None:
                 token = os.environ[env_var]
         except KeyError:
-            msg = F"Could not find environment variable {env_var}"
-            logger.error("PAIV:" + msg)
-            print(msg + "'\n")
+            msg = F"Could not find '{env_var}' information in environment or input parameters"
+            logger.error(" PAIV:" + msg)
             raise
 
         # Get optional parameters from ENV if not provided -- fallback to defaults if not present in ENV
@@ -69,6 +72,8 @@ class Base:
             self.projects = Projects(self.server)
             self.datasets = Datasets(self.server)
             self.files = Files(self.server)
+            self.file_keys = FileUserKeys(self.server)
+            self.file_metadata = FileUserMetadata(self.server)
             self.categories = Categories(self.server)
             self.object_tags = ObjectTags(self.server)
             self.object_labels = ObjectLabels(self.server)
@@ -91,6 +96,10 @@ class Base:
     def status_code(self):
         """ Get the status code from the last server request"""
         return self.server.status_code()
+
+    def rsp_ok(self):
+        """ Check for OK status from last server request"""
+        return self.server.rsp_ok()
 
     def http_request_str(self):
         """ Gets the HTTP request that generated the current response"""

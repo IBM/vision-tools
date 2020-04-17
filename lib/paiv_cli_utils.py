@@ -136,10 +136,22 @@ def get_valid_input(usage, operation_map, id=None, argv=None, cmd_flags=None):
 
             results.op_params = op_results
             set_output_controls(cmd_results)
+
+            # Ensure required parameters are present in either input or env vars
+            # NOTE: we cannot validate VAPI_TOKEN here because user may be requesting a token.
+            try:
+                if host_name is None:
+                    x = os.environ["VAPI_HOST"]
+            except Exception:
+                print("ERROR: Missing 'HOST' information.", file=sys.stderr)
+                print("       Either use '--host' flag or export 'VAPI_HOST' environment variable.\n",
+                      file=sys.stderr)
+                print(usage["usage"], file=sys.stderr)
+                results = None
         else:
             print("ERROR: Unknown operation -- {:s}".format(results.operation), file=sys.stderr)
             print(usage["usage"], file=sys.stderr)
-            return None
+            results = None
         logger.debug(results)
     return results
 
@@ -157,7 +169,8 @@ def reportApiError(server, msg=None):
     httpreq = server.http_request_str()
 
     try:
-        jsondata = textwrap.indent(json.dumps(server.json(), indent=2), " " * 8)
+        #jsondata = textwrap.indent(json.dumps(server.json(), indent=2), " " * 8)
+        jsondata = json.dumps(server.json(), indent=2)
     except:
         jsondata = None
 
@@ -165,7 +178,7 @@ def reportApiError(server, msg=None):
         print(msg, file=sys.stderr)
     if server.server.last_failure is not None:
         print(server.server.last_failure, file=sys.stderr)
-    if jsondata is not None and jsondata != "        null":
+    if jsondata is not None and jsondata != "null":
         print(jsondata, file=sys.stderr)
 
     if show_httpdetail:
@@ -210,6 +223,7 @@ def reportSuccess(server, msg=None, summaryFields=None):
             print_http_detail(server)
     except BrokenPipeError:
         pass
+
 
 def translate_flags(argmap, args):
     """ Translates flags in 'args' using 'argmap' for the new value.

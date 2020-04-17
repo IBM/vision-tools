@@ -33,6 +33,8 @@ Where:
       categories     -- work with category entities
       datasets       -- work with dataset entities
       files          -- work with dataset file entities
+      fkeys          -- work with user file metadata keys
+      fmetadata      -- work with user file metadata key/value pairs
       object-tags    -- work with object detection tag entities
       object-labels  -- work with object detection label entities (aka annotation entities)
       dltasks        -- work with DL training tasks
@@ -50,6 +52,8 @@ entity_map = {
     "deployed-models": "deployed-models",
     "dltasks": "dltasks",
     "files": "files",
+    "fkeys": "fkeys",
+    "fmetadata": "fmetadata",
     "help": "help",
     "obj-labels": "object-labels",
     "obj-tags": "object-tags",

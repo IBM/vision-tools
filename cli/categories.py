@@ -18,7 +18,8 @@
 #
 #  IBM_PROLOG_END_TAG
 
-
+import logging as logger
+import sys
 import paiv
 import paiv_cli_utils
 from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
@@ -242,7 +243,13 @@ def main(params, cmd_flags=None):
 
     args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--catid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 
