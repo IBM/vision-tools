@@ -40,7 +40,7 @@ ds_file_description = """   --dsid     Required parameter identifying the datase
 
 #---  Create Operation  -----------------------------------
 create_usage = """
-Usage:   fmetadata create --dsid=<dataset_id>  --fileid=<file_id> (--data=<file_path> | <quoted-json-string>)
+Usage:   fmetadata (create|add) --dsid=<dataset_id>  --fileid=<file_id> (--data=<file_path> | <quoted-json-string>)
 
 Where:
    --dsid   Required parameter identifying the dataset containing the target file.
@@ -129,7 +129,7 @@ def delete(params):
     keys = params.get("<key-name>", [])
 
     server.file_metadata.delete(dsid, fileid, keys)
-    if server.rsp_ok() is None:
+    if server.rsp_ok() is False:
         reportApiError(server, f"Failure attempting to delete user metadata from file '{fileid}'")
     else:
         reportSuccess(server, f"Deleted {len(keys)} metadata pairs from file '{fileid}'")
