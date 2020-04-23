@@ -68,10 +68,10 @@ def create(params):
         metadata = json.loads(params.get("<quoted-json-string>", "{}"))
 
     rsp = server.file_metadata.add(dsid, fileid, metadata)
-    if rsp is None:
-        reportApiError(server, f"Failure attempting to add user metadata to  file '{fileid}' in dataset '{dsid}'")
-    else:
+    if server.rsp_ok():
         reportSuccess(server, None)
+    else:
+        reportApiError(server, f"Failure attempting to add user metadata to  file '{fileid}' in dataset '{dsid}'")
 
 
 #---  Change/Update Operation  --------------------------------------
@@ -98,11 +98,11 @@ def update(params):
     value = params.get("<value>", None)
 
     data = {key: value}
-    rsp = server.file_metadata.add(dsid, fileid, data)
-    if rsp is None:
-        reportApiError(server, f"Failure attempting to change the value associated with '{key}' in file '{fileid}'")
-    else:
+    server.file_metadata.add(dsid, fileid, data)
+    if server.rsp_ok():
         reportSuccess(server, f"Changed the value of metadata key'{key}' in file '{fileid}'")
+    else:
+        reportApiError(server, f"Failure attempting to change the value associated with '{key}' in file '{fileid}'")
 
 
 #---  Delete Operation  ---------------------------------------------
@@ -153,36 +153,36 @@ def report(params):
     dsid = params.get("--dsid", "no_ds_id")
     fileid = params.get("--fileid", "no_file_id")
 
-    rsp = server.file_metadata.report(dsid, fileid)
+    server.file_metadata.report(dsid, fileid)
 
-    if rsp is None:
-        reportApiError(server, f"Failure attempting to list metadata on file {fileid} in dataset {dsid}")
-    else:
+    if server.rsp_ok():
         reportSuccess(server, None)
+    else:
+        reportApiError(server, f"Failure attempting to list metadata on file {fileid} in dataset {dsid}")
 
 
 #---  Export Operation  ----------------------------------------------
 export_usage = f"""
-Usage:  fmetadata show --dsid=<dataset_id> --name=<key_name>
+Usage:  fmetadata export --dsid=<dataset_id>
 
 Where:
    --dsid   Required parameter that identifies the dataset into which the
             user metadata key is to be created.
-   --name   Required parameter identifying the name of the key to delete
 
-Shows detail information for the indicated file user metadata key."""
+Exports file user metadata from all files in a dataset in CSV format."""
 
 
 def export(params):
-    """Shows details of a specific file user metadata key"""
+    """Exports file metadata for all files in a dataset in CSV format """
 
     dsid = params.get("--dsid", "missing_id")
 
-    rsp = server.file_metadata.show(dsid)
-    if rsp is None:
-        reportApiError(server, f"Failure attempting to export all files' user metadata in dataset id '{dsid}'")
+    server.file_metadata.export(dsid)
+    if server.rsp_ok():
+        reportSuccess(server, server.raw_http_response().text)
     else:
-        reportSuccess(server)
+        reportApiError(server, f"Failure attempting to export all files' user metadata in dataset id '{dsid}'")
+
 
 
 cmd_usage = f"""
