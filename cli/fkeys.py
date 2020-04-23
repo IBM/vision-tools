@@ -62,7 +62,7 @@ def create(params):
     if rsp is None:
         reportApiError(server, f"Failure attempting to create file user metadata key named '{name}' in dataset '{dsid}'")
     else:
-        reportSuccess(server, f"Changed file id '{name}' in dataset '{dsid}'")
+        reportSuccess(server, f"Created key '{name}' in dataset '{dsid}'")
 
 
 #---  Change/Update Operation  --------------------------------------
@@ -120,7 +120,7 @@ def delete(params):
     if rsp is None:
         reportApiError(server, f"Failure attempting to delete file user metadata key '{name}' from dataset '{dsid}'")
     else:
-        reportSuccess(server, f"Deleted file user metadata key '{fileid}' from dataset '{dsid}'")
+        reportSuccess(server, f"Deleted file user metadata key '{name}' from dataset '{dsid}'")
 
 
 #---  List/Report Operation  ----------------------------------------

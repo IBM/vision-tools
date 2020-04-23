@@ -16,8 +16,7 @@
 #  limitations under the License.
 #
 #  IBM_PROLOG_END_TAG
-
-
+import json
 import os
 import re
 import requests
@@ -168,6 +167,7 @@ class Server(object):
             self.last_failure = f"Could not connect to server ({self.host})."
             logger.debug(e)
 
+        self.__log_http_messages()
         jsonData = None
         if self.rsp_ok():
             jsonData = self.json()
@@ -186,6 +186,7 @@ class Server(object):
             self.last_rsp = None
             self.last_failure = f"Could not connect to server ({self.host})."
 
+        self.__log_http_messages()
         jsonData = None
         if self.rsp_ok():
             jsonData = self.json()
@@ -204,6 +205,7 @@ class Server(object):
             self.last_rsp = None
             self.last_failure = f"Could not connect to server ({self.host})."
 
+        self.__log_http_messages()
         jsonData = None
         if self.rsp_ok():
             jsonData = self.json()
@@ -213,4 +215,8 @@ class Server(object):
         """ Writes both the HTTP request and response messages to the log if traffic logging is turned on"""
         if self.log_http_traffic:
             logger.info(self.http_request_str())
-            logger.info(self.raw_rsp())
+            data = self.json()
+            if data is not None:
+                logger.info(json.dumps(data, indent=2))
+            else:
+                logger.info(self.raw_rsp().text)
