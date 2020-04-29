@@ -146,7 +146,7 @@ def delete(params):
 #---  List/Report Operation  ----------------------------------------
 list_usage = f"""
 Usage:  files list --dsid=<dataset_id> [--catid=<category_id>] [--parentid=<parent_id>]
-             [--sort=<string>] [--summary]
+             [--query=<query_string] [--sort=<string>] [--summary]
              {paiv_cli_utils.limit_skip_flags}
 
 Where:
@@ -156,6 +156,12 @@ Where:
              indicated category. Only 1 category can be specified
    --parentid  Optional parameter to filter results to files with the
              indicated parent.  Only 1 parent can be specified.
+   --query   Optional parameter containing set of comma separated query terms.
+             Each query term has 3 parts; a field name, a comparison, and a value.
+             Each of the 3 parts is separated by whitespace. Possible comparision strings
+             are '==' (equal), '!=' (not equal), '>' (greater than), '<' (less than),
+             '>=' (greater than or equal) and '<=' (less than or equal). Values can be 
+             quoted strings or unquoted numbers
    --sort    Comma separated string of field names on which to sort.
              Add " DESC" after a field name to change to a descending sort.
              If adding " DESC", the field list must be enclosed in quotes.
@@ -176,6 +182,7 @@ def report(params):
 
     expectedArgs = {'--catid': 'category_id',
                     '--parentid': 'parent_id',
+                    '--query': 'query',
                     '--sort': 'sortby',
                     '--limit': 'limit',
                     '--skip': 'skip'}
