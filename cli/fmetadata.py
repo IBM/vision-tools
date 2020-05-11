@@ -179,7 +179,8 @@ def export(params):
 
     server.file_metadata.export(dsid)
     if server.rsp_ok():
-        reportSuccess(server, server.raw_http_response().text)
+        # Must strip the trailing new line.
+        reportSuccess(server, server.raw_http_response().text[:-1])
     else:
         reportApiError(server, f"Failure attempting to export all files' user metadata in dataset id '{dsid}'")
 

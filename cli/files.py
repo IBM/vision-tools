@@ -40,11 +40,16 @@ ds_file_description = """   --dsid     Required parameter identifying the datase
 
 #---  Upload Operation  ---------------------------------------------
 upload_usage = """
-Usage:   files upload --dsid=<dataset_id>  <file_paths>...
+Usage:   files upload --dsid=<dataset_id>  [--metadata=<String>] [--labels=<String>] <file_paths>...
 
 Where:
    --dsid   Required parameter that identifies the dataset into which the
             file(s) are to be loaded
+   --metadata  Optional parameter that contains a Json object string of
+            key/value pairs to be associated with the uploaded files.
+   --labels    Optional parameter that contains a Json Array of label
+            annotations to associate with the uploaded file. NOTE that
+            labels cannot be applied to multiple files.
    <file_paths>   Space separated list of file paths to upload
 
 Uploads one or more files to a dataset.
@@ -58,8 +63,13 @@ def upload(params):
     """
 
     dsid = params.get("--dsid", "missing_id")
+    expectedArgs = {
+        '--metadata': 'user-metadata',
+        '--labels': 'labels'
+    }
+    kwargs = translate_flags(expectedArgs, params)
 
-    rsp = server.files.upload(dsid, params["<file_paths>"])
+    rsp = server.files.upload(dsid, params["<file_paths>"], **kwargs)
     if rsp is None:
         try:
             results = server.json()["resultList"]

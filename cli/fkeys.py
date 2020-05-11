@@ -67,14 +67,14 @@ def create(params):
 
 #---  Change/Update Operation  --------------------------------------
 change_usage = f"""
-Usage:  fkeys change  --dsid=<dataset_id> --key=<key_name> [--description=<description>] [--name=<new_name>]
+Usage:  fkeys change  --dsid=<dataset_id> --name=<key_name> [--description=<description>] [--newname=<new_name>]
 
 Where:
    --dsid   Required parameter that identifies the dataset into which the
             user metadata key is to be created.
-   --key    Required parameter identifying the name of the key to be changed.
+   --name   Required parameter identifying the name of the key to be changed.
    --description  Optional parameter containing the new description
-   --name   Optional parameter containing the new name
+   --newname   Optional parameter containing the new name
 
 Modifies attributes of the specified key."""
 
@@ -87,7 +87,11 @@ def update(params):
     dsid = params.get("--dsid", "missing_id")
     name = params.get("--name", "missing_id")
 
-    rsp = server.file_keys.update(dsid, name, **params)
+    expectedArgs = {'--newname': 'name',
+                    '--description': 'description'}
+    kwargs = translate_flags(expectedArgs, params)
+
+    rsp = server.file_keys.update(dsid, name, **kwargs)
     if rsp is None:
         reportApiError(server, f"Failure attempting to change file user metadata key '{name}' in dataset '{dsid}'")
     else:

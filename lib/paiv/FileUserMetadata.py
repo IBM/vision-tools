@@ -66,18 +66,22 @@ class FileUserMetadata:
         uri = f"/datasets/{dsid}/files/{fileid}/user-metadata/{key}"
         return self.server.get(uri)
 
-    def export(self, dsid, format=None, keys=None):
+    def export(self, dsid, format=None, keys=None, query=None):
         """ "exports" file user metadata across all files in the dataset.
 
         :param dsid  -- UUID of the target dataset.
-        :param format -- optional parameter controlling the format of the output.
-        :param keys  -- optional parameter identifying keys to include in the output"""
+        :param format -- optional parameter controlling the format of the export.
+        :param keys  -- optional parameter identifying keys to include in the export
+        :param query -- optional parameter containing query filter for files to include in the export"""
 
         qparms = None
         if format is not None:
             qparms["format"] = format
         if keys is not None:
             qparms["keys"] = keys
+        if query is not None:
+            qparms["query"] = query
 
         uri = f"/datasets/{dsid}/files/user-metadata"
-        return self.server.get(uri, params=qparms)
+        self.server.get(uri, params=qparms)
+        return self.server.text()

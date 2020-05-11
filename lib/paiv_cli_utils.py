@@ -209,7 +209,7 @@ def reportSuccess(server, msg=None, summaryFields=None):
                     values = [item.get(field, "") for field in summaryFields]
                     print("\t".join(str(value) for value in values))
                 print(f"{cnt} items")
-            elif msg is not None:
+            elif msg is not None and len(msg) > 0:
                 print(msg)
 
         if json_only or (msg is None and summaryFields is None):
