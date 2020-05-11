@@ -17,6 +17,7 @@
 #
 #  IBM_PROLOG_END_TAG
 
+import logging as logger
 
 class Files:
 
@@ -33,13 +34,17 @@ class Files:
         uri = f"/datasets/{dsid}/files"
         return self.server.get(uri, params=kwargs)
 
-    def upload(self, dsid, file_paths):
+    def upload(self, dsid, file_paths, **kwargs):
         """ Uploads files to the indicated dataset.
 
         :param dsid -- UUID of target dataset
         :param file_paths -- list of files to upload"""
 
         files = []
+        for key, value in kwargs.items():
+            item = (key, value)
+            logger.debug(f"item = {item}")
+            files.append(item)
         for filepath in file_paths:
             files.append(('files', open(filepath, 'rb')))
 

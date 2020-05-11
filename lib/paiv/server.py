@@ -72,6 +72,10 @@ class Server(object):
         )
         return msg
 
+    def text(self):
+        """ Gets the raw response data"""
+        return self.last_rsp.text
+
     def json(self):
         """ Get the json data from the last server response"""
         try:

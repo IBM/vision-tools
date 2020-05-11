@@ -60,8 +60,7 @@ class FileUserKeys:
         """ Shows the named key's detail information
 
         :param dsid -- UUID of the targeted dataset
-        :param fileid -- UUID of the targeted file
-        :param name -- name of the key/value to show"""
+        :param keyName -- name of the key/value to show"""
 
         uri = f"/datasets/{dsid}/files/user-keys/{keyName}"
         return self.server.get(uri)
@@ -75,4 +74,3 @@ class FileUserKeys:
 
         uri = f"/datasets/{dsid}/files/user-keys/{keyName}"
         return self.server.put(uri, json=kwargs)
-

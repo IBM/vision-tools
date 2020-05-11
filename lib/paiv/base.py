@@ -108,3 +108,7 @@ class Base:
     def json(self):
         """ Get the json data from the last server response"""
         return self.server.json()
+
+    def text(self):
+        """ Get response body as a string """
+        return self.server.text()
