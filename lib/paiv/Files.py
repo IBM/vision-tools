@@ -17,6 +17,7 @@
 #
 #  IBM_PROLOG_END_TAG
 
+import os
 import logging as logger
 
 class Files:
@@ -82,6 +83,42 @@ class Files:
 
         uri = f"/datasets/{dsid}/files/{file_id}"
         return self.server.get(uri)
+
+    def download(self, dsid, file_id, thumbnail, fname=None):
+        """ Get details of the indicated file
+
+        :param dsid      -- UUID of the targeted dataset
+        :param file_id   -- UUID of the targeted file
+        :param thumbnail -- Flag to download thumbnail instead of the file itself
+        :param fname     -- path to output file."""
+
+        # Get file info
+        uri = f"/datasets/{dsid}/files/{file_id}"
+        fileInfo = self.server.get(uri)
+        if not self.server.rsp_ok():
+            logger.info("Failed to file info for ds={}, file={}", dsid, file_id)
+            return None
+
+        owner = fileInfo["owner"]
+        origFname = fileInfo["original_file_name"]
+
+        if fname is None:
+            fname = origFname
+
+        if thumbnail:
+            svrFname = f"{file_id}.jpg"
+            fileThumb = "thumbnails"
+        else:
+            svrFname = fileInfo["file_name"]
+            fileThumb = "files"
+
+        uri = f"/uploads/{owner}/datasets/{dsid}/{fileThumb}/{svrFname}"
+        self.server.get(uri, fileDownload=True, stream=True)
+        if self.server.rsp_ok():
+            self.server.save_file(fname, )
+            return os.path.abspath(fname)
+        else:
+            return None
 
     def copymove(self, operation, fromDs, toDs, file_ids):
         """ Performs file copy/move of the indicated file ids.

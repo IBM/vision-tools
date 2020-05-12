@@ -231,12 +231,13 @@ def show(params):
 
 # ---  Download Operation  -------------------------------------------
 download_usage = f"""
-Usage:  files download --dsid=<dataset_id> --fileid=<file_id> [--thumbnail]
+Usage:  files download --dsid=<dataset_id> --fileid=<file_id> [--thumbnail] [--output=<outputfilename>]
 
 Where:
 {ds_file_description}
    --thumbnail   Optional parameter to download the thumbnail instead of
                  the file.
+   --output      Optional parameter identifying the name of the output file  path
 
 Downloads the image associated with the indicated file."""
 
@@ -245,10 +246,16 @@ def download(params):
     """Handles the 'download' operation to show details of a single file"""
 
     dsid = params.get("--dsid", "missing_id")
-    fileid = params.get("--fileid", "missing_id")
+    fileid = params.get("--fileid", "not-provided")
+    thumbnail = params.get("--thumbnail", False)
+    fname = params.get("--output", None)
 
-    print("'download' operation not yet implemented", file=sys.stderr)
-    return -1
+    rsp = server.files.download(dsid, fileid, thumbnail, fname)
+    if server.server.rsp_ok():
+        reportSuccess(server, f"Downloaded file {fileid} from dataset {dsid} into file {rsp}")
+    else:
+        reportApiError(server, f"Failed to download file {fileid} from dataset {dsid}; status={server.server.status_code()}")
+
 
 
 # ---  Copy Operation  ---------------------------------------------
