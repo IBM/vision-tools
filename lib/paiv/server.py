@@ -26,9 +26,10 @@ import logging as logger
 class Server(object):
     __version__ = "0.1"
 
-    def __init__(self, server_host, auth_token, instance="powerai-vision", log_http_traffic=False):
+    def __init__(self, server_host, auth_token, instance="visual-insights", log_http_traffic=False):
         self.token = auth_token
         self.host = server_host
+        self.instance = instance
         self.baseurl = F"https://{self.host}/{instance}/api"
         self.last_rsp = None
         self.last_failure = None
@@ -133,11 +134,14 @@ class Server(object):
     # Helper Methods for HTTP Verbs. Methods are used to front-end
     # the 'requests' methods to add common parameters, to save
     # data for future reference, and to return only the JSON content.
-    def get(self, uri, headers=None, **kwargs):
+    def get(self, uri, headers=None, fileDownload=False, **kwargs):
         if headers is None:
             headers = {}
         headers['X-Auth-Token'] = u'%s' % self.token
-        url = self.baseurl + uri
+        if fileDownload is False:
+            url = self.baseurl + uri
+        else:
+            url = f"https://{self.host}/{self.instance}/{uri}"
 
         try:
             self.last_rsp = requests.get(url, verify=False, headers=headers, **kwargs)
