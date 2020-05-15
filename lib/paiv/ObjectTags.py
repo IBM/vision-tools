@@ -59,3 +59,16 @@ class ObjectTags:
 
         uri = f"/datasets/{ds_id}/tags/{tag_id}"
         return self.server.get(uri)
+
+    def update(self, ds_id, tag_id, **kwargs):
+        """ updates the specified object tag.
+
+        :param ds_id   -- UUID of the dataset containing the target object tag
+        :param tag_id  -- UUID of the object tag to be updated
+        :param kwargs  -- dictionary of fields to change
+        """
+
+        kwargs["action"] = "update"
+
+        uri = f"/datasets/{ds_id}/tags/{tag_id}/action"
+        return self.server.post(uri, json=kwargs)

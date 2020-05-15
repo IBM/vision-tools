@@ -128,11 +128,11 @@ def delete(params):
     fileid = params.get("--fileid", "no_file_id")
     keys = params.get("<key-name>", [])
 
-    server.file_metadata.delete(dsid, fileid, keys)
+    deletedKeys = server.file_metadata.delete(dsid, fileid, keys)
     if server.rsp_ok() is False:
         reportApiError(server, f"Failure attempting to delete user metadata from file '{fileid}'")
     else:
-        reportSuccess(server, f"Deleted {len(keys)} metadata pairs from file '{fileid}'")
+        reportSuccess(server, f"Deleted metadata with keys {deletedKeys} ({len(deletedKeys)} keys) from file '{fileid}'")
 
 
 #---  List/Report Operation  ----------------------------------------
