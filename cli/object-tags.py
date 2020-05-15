@@ -62,7 +62,7 @@ def create(params):
 
 # ---  Change/Update Operation  --------------------------------------
 change_usage = f"""
-Usage:  object_tags change {ds_tag_flags} --name <name>
+Usage:  object_tags change {ds_tag_flags} --name=<name>
 
 Where:
 {ds_tag_description}
@@ -81,9 +81,8 @@ def update(params):
 
     expected_args = {'--name': 'name'}
     kwargs = translate_flags(expected_args, params)
-    kwargs["action"] = "rename"
 
-    rsp = server.object_tags.action(dsid, tagid, **kwargs)
+    rsp = server.object_tags.update(dsid, tagid, **kwargs)
     if rsp is None:
         reportApiError(server, f"Failure attempting to change tag id '{tagid}' in dataset '{dsid}'")
     else:
