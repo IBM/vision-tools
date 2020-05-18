@@ -22,22 +22,22 @@ import os
 import logging as logger
 import sys
 
-from paiv.server import Server
-from paiv.projects import Projects
-from paiv.Datasets import Datasets
-from paiv.Files import Files
-from paiv.FileUserKeys import FileUserKeys
-from paiv.FileUserMetadata import FileUserMetadata
-from paiv.Categories import Categories
-from paiv.ObjectTags import ObjectTags
-from paiv.Objectlabels import ObjectLabels
-from paiv.ActionTags import ActionTags
-from paiv.ActionLabels import ActionLabels
-from paiv.Dltasks import DlTasks
-from paiv.TrainedModels import TrainedModels
-from paiv.DeployedModels import DeployedModels
-from paiv.InferenceResults import InferenceResults
-from paiv.Users import Users
+from vapi.server import Server
+from vapi.projects import Projects
+from vapi.Datasets import Datasets
+from vapi.Files import Files
+from vapi.FileUserKeys import FileUserKeys
+from vapi.FileUserMetadata import FileUserMetadata
+from vapi.Categories import Categories
+from vapi.ObjectTags import ObjectTags
+from vapi.Objectlabels import ObjectLabels
+from vapi.ActionTags import ActionTags
+from vapi.ActionLabels import ActionLabels
+from vapi.Dltasks import DlTasks
+from vapi.TrainedModels import TrainedModels
+from vapi.DeployedModels import DeployedModels
+from vapi.InferenceResults import InferenceResults
+from vapi.Users import Users
 
 
 class Base:

@@ -3,3 +3,6 @@
 __pycache__/
 test-wk-dir/
 bats/
+*.egg-info/
+build/
+dist/
