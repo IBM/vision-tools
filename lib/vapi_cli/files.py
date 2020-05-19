@@ -156,7 +156,7 @@ def delete(params):
 #---  List/Report Operation  ----------------------------------------
 list_usage = f"""
 Usage:  files list --dsid=<dataset_id> [--catid=<category_id>] [--parentid=<parent_id>]
-             [--query=<query_string] [--sort=<string>] [--summary]
+             [--query=<query_string>] [--sort=<string>] [--summary]
              {cli_utils.limit_skip_flags}
 
 Where:
