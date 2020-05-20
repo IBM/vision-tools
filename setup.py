@@ -6,7 +6,7 @@ with open("pipDescription.md", "r") as fh:
 
 setup(
     name="Vision Tools",
-    version="0.1.0",
+    version="0.1.0-dev",
     author="Carl Bender",
     author_email="bcarl@us.ibm.com",
     description="Tools to interface with an IBM Visual Insights server's ReST API.",
@@ -23,7 +23,7 @@ setup(
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: Apache Version 2",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
