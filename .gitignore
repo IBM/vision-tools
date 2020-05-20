@@ -1,4 +1,5 @@
 *~
+*.sav
 .DS_Store
 __pycache__/
 test-wk-dir/

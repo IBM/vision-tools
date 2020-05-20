@@ -5,11 +5,11 @@ with open("pipDescription.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="IBM Vision Tools",
-    version="0.0.1",
+    name="Vision Tools",
+    version="0.1.0",
     author="Carl Bender",
     author_email="bcarl@us.ibm.com",
-    description="CLI and lib tools to interface with an IBM Visual Insights server.",
+    description="Tools to interface with an IBM Visual Insights server's ReST API.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ibm/vision-tools",
