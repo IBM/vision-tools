@@ -16,8 +16,7 @@
 #  limitations under the License.
 #
 #  IBM_PROLOG_END_TAG
-
-
+import json
 import os
 import re
 import requests
@@ -27,9 +26,10 @@ import logging as logger
 class Server(object):
     __version__ = "0.1"
 
-    def __init__(self, server_host, auth_token, instance="powerai-vision", log_http_traffic=False):
+    def __init__(self, server_host, auth_token, instance="visual-insights", log_http_traffic=False):
         self.token = auth_token
         self.host = server_host
+        self.instance = instance
         self.baseurl = F"https://{self.host}/{instance}/api"
         self.last_rsp = None
         self.last_failure = None
@@ -72,6 +72,10 @@ class Server(object):
             req.body if req.body is not None else ""
         )
         return msg
+
+    def text(self):
+        """ Gets the raw response data"""
+        return self.last_rsp.text
 
     def json(self):
         """ Get the json data from the last server response"""
@@ -130,11 +134,14 @@ class Server(object):
     # Helper Methods for HTTP Verbs. Methods are used to front-end
     # the 'requests' methods to add common parameters, to save
     # data for future reference, and to return only the JSON content.
-    def get(self, uri, headers=None, **kwargs):
+    def get(self, uri, headers=None, fileDownload=False, **kwargs):
         if headers is None:
             headers = {}
         headers['X-Auth-Token'] = u'%s' % self.token
-        url = self.baseurl + uri
+        if fileDownload is False:
+            url = self.baseurl + uri
+        else:
+            url = f"https://{self.host}/{self.instance}/{uri}"
 
         try:
             self.last_rsp = requests.get(url, verify=False, headers=headers, **kwargs)
@@ -168,6 +175,7 @@ class Server(object):
             self.last_failure = f"Could not connect to server ({self.host})."
             logger.debug(e)
 
+        self.__log_http_messages()
         jsonData = None
         if self.rsp_ok():
             jsonData = self.json()
@@ -186,6 +194,7 @@ class Server(object):
             self.last_rsp = None
             self.last_failure = f"Could not connect to server ({self.host})."
 
+        self.__log_http_messages()
         jsonData = None
         if self.rsp_ok():
             jsonData = self.json()
@@ -204,6 +213,7 @@ class Server(object):
             self.last_rsp = None
             self.last_failure = f"Could not connect to server ({self.host})."
 
+        self.__log_http_messages()
         jsonData = None
         if self.rsp_ok():
             jsonData = self.json()
@@ -213,4 +223,8 @@ class Server(object):
         """ Writes both the HTTP request and response messages to the log if traffic logging is turned on"""
         if self.log_http_traffic:
             logger.info(self.http_request_str())
-            logger.info(self.raw_rsp())
+            data = self.json()
+            if data is not None:
+                logger.info(json.dumps(data, indent=2))
+            else:
+                logger.info(self.raw_rsp().text)

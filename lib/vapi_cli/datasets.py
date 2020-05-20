@@ -17,13 +17,15 @@
 #  limitations under the License.
 #
 #  IBM_PROLOG_END_TAG
+
 import json
 import sys
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
+import logging as logger
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
-# All of the PAIV CLI requires python 3.6 due to format string
+# All of Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -249,6 +251,37 @@ def export(params):
         reportSuccess(server, filepath)
 
 
+# ---  Clone Operation  ---------------------------------------------
+clone_usage = """
+Usage:
+  datasets clone (--dsid=<dataset-id> | --id=<dataset-id>) --name=<new-dataset-name>
+
+Where:
+  --dsid | --id  Either '--dsid' or '--id' is required and identifies the
+             dataset to be cloned.
+  --name     Required parameter to specify the name of the new dataset.
+
+Clones an existing dataset into a new dataset."""
+
+
+def clone(params):
+    """Handles the 'clone' operation."""
+
+    dsid = params.get("--dsid", "missing_id")
+    name = params.get("--name", "No Name")
+
+    rsp = server.datasets.clone(dsid, name)
+    if rsp is None:
+        reportApiError(server, "Failure cloning dataset")
+    else:
+        try:
+            clonedId = server.json()["dataset_id"]
+        except:
+            clonedId = "???"
+
+        reportSuccess(server, f"Successfully cloned dataset with id {dsid} into id {clonedId}")
+
+
 # ---  Train Operation  ----------------------------------------------
 train_usage = """
 Usage:
@@ -362,10 +395,10 @@ def train(params):
 
 
 cmd_usage = f"""
-Usage:  datatsets {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  datatsets {cli_utils.common_cmd_flags} <operation> [<args>...]
 
 Where:
-{paiv_cli_utils.common_cmd_flag_descriptions}
+{cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
       create  -- creates a new dataset
@@ -376,6 +409,7 @@ Where:
       export  -- export a dataset
       import  -- import an exported dataset
       train   -- train a model based upon a dataset
+      clone   -- copy the indicated dataset into a new dataset of the given name
 
 Use 'datasets <operation> --help' for more information on a specific command."""
 
@@ -388,7 +422,8 @@ usage_stmt = {
     "show": show_usage,
     "train": train_usage,
     "export": export_usage,
-    "import": import_usage
+    "import": import_usage,
+    "clone": clone_usage
 }
 
 operation_map = {
@@ -399,16 +434,23 @@ operation_map = {
     "show": show,
     "train": train,
     "export": export,
-    "import": import_dataset
+    "import": import_dataset,
+    "clone": clone
 }
 
 
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--dsid", argv=params, cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, id="--dsid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(dict(e))
+            return 1
+
         args.operation(args.op_params)
 
 

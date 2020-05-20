@@ -18,24 +18,25 @@
 #
 #  IBM_PROLOG_END_TAG
 
+import logging as logger
+import sys
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
-
-ds_tag_flags = "(--ds_id=<dataset-id>)  (--tag_id=<tag-id>)"
-ds_tag_description = """   --ds_id    Required parameter identifying the dataset to which
+ds_tag_flags = "(--dsid=<dataset-id>)  (--tagid=<tag-id> | --id=<tag_id>)"
+ds_tag_description = """   --dsid    Required parameter identifying the dataset to which
               the file belongs
-   --tag_id  Required parameter identifying the targeted object tag"""
+   --tagid | --id Required parameter identifying the targeted object tag"""
 
 server = None
 
 # ---  Create Operation  ---------------------------------------------
 create_usage = """
-Usage:   object_tags create --ds_id=<dataset_id>  --name=<name>
+Usage:   object_tags create --dsid=<dataset_id>  --name=<name>
 
 Where:
-   --ds_id   Required parameter that identifies the dataset into which the
+   --dsid   Required parameter that identifies the dataset into which the
              tag is to be loaded
    --name    Tag name
 
@@ -47,7 +48,7 @@ def create(params):
     """Handles the 'create' operation for adding an object tag to a dataset.
     """
 
-    dsid = params.get("--ds_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
 
     expected_args = {"--name": "name"}
     kwargs = translate_flags(expected_args, params)
@@ -61,7 +62,7 @@ def create(params):
 
 # ---  Change/Update Operation  --------------------------------------
 change_usage = f"""
-Usage:  object_tags change {ds_tag_flags} --name <name>
+Usage:  object_tags change {ds_tag_flags} --name=<name>
 
 Where:
 {ds_tag_description}
@@ -75,14 +76,13 @@ def update(params):
     """Handles the 'change' operation for modifying an object tag.
     """
 
-    dsid = params.get("--ds_id", "missing_id")
-    tagid = params.get("--tag_id", "missing_id")
+    dsid = params.get("--dsid", "missingid")
+    tagid = params.get("--tagid", "missing_id")
 
     expected_args = {'--name': 'name'}
     kwargs = translate_flags(expected_args, params)
-    kwargs["action"] = "rename"
 
-    rsp = server.object_tags.action(dsid, tagid, **kwargs)
+    rsp = server.object_tags.update(dsid, tagid, **kwargs)
     if rsp is None:
         reportApiError(server, f"Failure attempting to change tag id '{tagid}' in dataset '{dsid}'")
     else:
@@ -102,12 +102,12 @@ deleted at a time.
 
 
 def delete(params):
-    """Deletes one object tag identified by the --ds_id and --tag_id parameters.
+    """Deletes one object tag identified by the --dsid and --tagid parameters.
 
     Future work should allow a list of tags."""
 
-    dsid = params.get("--ds_id", "missing_id")
-    tagid = params.get("--tag_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
+    tagid = params.get("--tagid", "missing_id")
 
     rsp = server.object_tags.delete(dsid, tagid)
     if rsp is None:
@@ -118,10 +118,10 @@ def delete(params):
 
 # ---  List/Report Operation  ----------------------------------------
 list_usage = f"""
-Usage:  object_tags list --ds_id=<dataset_id> [--summary] [--sort=<sort-string>]
+Usage:  object_tags list --dsid=<dataset_id> [--summary] [--sort=<sort-string>]
 
 Where:
-   --ds_id   Required parameter that identifies the dataset to which the tags
+   --dsid   Required parameter that identifies the dataset to which the tags
              belong.
    --summary Optional flag to generate summary listing instead of json detail
    --sort    Comma separated string of field names on which to sort.
@@ -139,7 +139,7 @@ def report(params):
     if params["--summary"]:
         summaryFields = ["_id", "name", "label_count"]
 
-    dsid = params.get("--ds_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
 
     expectedArgs = {'--sort': 'sortby'}
     kwargs = translate_flags(expectedArgs, params)
@@ -166,8 +166,8 @@ Shows detail metadata information for the indicated object tag.
 def show(params):
     """Handles the 'show' operation to show details of a single tag"""
 
-    dsid = params.get("--ds_id", "missing_id")
-    tagid = params.get("--tag_id", "missing_id")
+    dsid = params.get("--dsid", "missing_id")
+    tagid = params.get("--tagid", "missing_id")
 
     rsp = server.object_tags.show(dsid, tagid)
     if rsp is None:
@@ -177,9 +177,9 @@ def show(params):
 
 
 cmd_usage = f"""
-Usage:  object_tags {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  object_tags {cli_utils.common_cmd_flags} <operation> [<args>...]
 
-Where: {paiv_cli_utils.common_cmd_flag_descriptions}
+Where: {cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
       create   -- create an object tag in a dataset
@@ -212,9 +212,15 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, argv=params, cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, id="--tagid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 

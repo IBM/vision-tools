@@ -17,6 +17,8 @@
 #
 #  IBM_PROLOG_END_TAG
 
+import os
+import logging as logger
 
 class Files:
 
@@ -33,13 +35,17 @@ class Files:
         uri = f"/datasets/{dsid}/files"
         return self.server.get(uri, params=kwargs)
 
-    def upload(self, dsid, file_paths):
+    def upload(self, dsid, file_paths, **kwargs):
         """ Uploads files to the indicated dataset.
 
         :param dsid -- UUID of target dataset
         :param file_paths -- list of files to upload"""
 
         files = []
+        for key, value in kwargs.items():
+            item = (key, value)
+            logger.debug(f"item = {item}")
+            files.append(item)
         for filepath in file_paths:
             files.append(('files', open(filepath, 'rb')))
 
@@ -77,3 +83,55 @@ class Files:
 
         uri = f"/datasets/{dsid}/files/{file_id}"
         return self.server.get(uri)
+
+    def download(self, dsid, file_id, thumbnail, fname=None):
+        """ Get details of the indicated file
+
+        :param dsid      -- UUID of the targeted dataset
+        :param file_id   -- UUID of the targeted file
+        :param thumbnail -- Flag to download thumbnail instead of the file itself
+        :param fname     -- path to output file."""
+
+        # Get file info
+        uri = f"/datasets/{dsid}/files/{file_id}"
+        fileInfo = self.server.get(uri)
+        if not self.server.rsp_ok():
+            logger.info("Failed to file info for ds={}, file={}", dsid, file_id)
+            return None
+
+        owner = fileInfo["owner"]
+        origFname = fileInfo["original_file_name"]
+
+        if fname is None:
+            fname = origFname
+
+        if thumbnail:
+            svrFname = f"{file_id}.jpg"
+            fileThumb = "thumbnails"
+        else:
+            svrFname = fileInfo["file_name"]
+            fileThumb = "files"
+
+        uri = f"/uploads/{owner}/datasets/{dsid}/{fileThumb}/{svrFname}"
+        self.server.get(uri, fileDownload=True, stream=True)
+        if self.server.rsp_ok():
+            self.server.save_file(fname, )
+            return os.path.abspath(fname)
+        else:
+            return None
+
+    def copymove(self, operation, fromDs, toDs, file_ids):
+        """ Performs file copy/move of the indicated file ids.
+
+        :param operation  -- Identifies the operation to perform. Either "copy" or "move".
+        :param fromDs  -- UUID of the dataset containing the files to copy/move.
+        :param toDS  -- UUID of the dataset into which the files are to be copied/moved.
+        :param file_ids -- list of file UUIDs to copy/move."""
+
+        data = {
+            "target_dataset_id": toDs,
+            "files": file_ids
+        }
+
+        uri = f"/datasets/{fromDs}/files/{operation}"
+        return self.server.post(uri, json=data)

@@ -18,13 +18,13 @@
 #
 #  IBM_PROLOG_END_TAG
 
-
+import logging as logger
 import sys
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
-# All of the PAIV CLI requires python 3.6 due to format string
+# All of Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -34,11 +34,11 @@ server = None
 # ---  Delete Operation  ---------------------------------------------
 delete_usage = """
 Usage:
-  deployed-models delete --modelid=<model-id>
+  deployed-models delete (--modelid=<model-id> | --id=<model-id>)
 
 Where:
-  --modelid   A required parameter that identifies the model to be
-           d.
+  --id | --modelid  Either '--id' or '--modelid' is required to identify the
+           model to be deleted.
 
 Deletes the indicated model. At this time, only 1 model can be 
 deleted at a time."""
@@ -93,10 +93,10 @@ def report(params):
 # ---  Show Operation  -----------------------------------------------
 show_usage = """
 Usage:
-  deployed-models show --modelid=<model-id>
+  deployed-models show (--modelid=<model-id> | --id=<model-id>)
 
 Where:
-  --modelid  A required parameter that identifies the model to be
+  --id | --modelid  Either '--id' or '--modelid' is required to identify the model to be
             shown.
 
 Shows detail metadata information for the indicated model."""
@@ -116,17 +116,16 @@ def show(params):
 # ---  Infer Operation   ---------------------------------------------
 infer_usage = """
 Usage:
-  deployed-models infer (--modelid=<model-id> | --id=<mode-id>) --file=<path-to-file>
+  deployed-models infer (--modelid=<model-id> | --id=<mode-id>)
                         [--minconfidence=<min-confidence] [--heatmap=<true_or_false>]
                         [--rle=<true_or_false>]  [--polygons=<true_or_false>]
                         [--maxclasses=<integer>] [--caption=<true_or_false>]
                         [--wait=<true_or_false>] [--annotatefile=<output_file_path>]
+                        <path-to-file>
 
 Where:
   --id | --modelid  Either '--id' or '--modelid' is required to identify the deployed
              model to use for inferencing
-  --file     Required parameter to identify the path to the file on which inference
-             is to be performed.
   --minconfidence Optional parameter indicating the minimum confidence that an 
              inference must meet to be included in the results. This flag applies
              to all inference types. For object and action detection, the threshold
@@ -156,6 +155,8 @@ Where:
              be stored. If not supplied, annotated images will not be generated.
              This flag only applies to object detection models.
              At this time, only bounding box annotations are done.
+  <path-to-file>     Required parameter to identify the path to the file on which inference
+             is to be performed.
 
 Performs inference on the given file. This command will do classification, object
 detection, or action detection depending upon the model being used. """
@@ -165,7 +166,7 @@ def infer(params):
     """Handles the 'infer' operation to a deployed model"""
 
     modelid = params.get("--modelid", "missing_id")
-    filepath = params.get("--file", None)
+    filepath = params.get("<path-to-file>", None)
     annotateFile = params.get("--annotatefile")
 
     expectedArgs = {
@@ -187,15 +188,16 @@ def infer(params):
 
 
 cmd_usage = f"""
-Usage:  deployed-models {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  deployed-models {cli_utils.common_cmd_flags} <operation> [<args>...]
 
 Where:
-{paiv_cli_utils.common_cmd_flag_descriptions}
+{cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
-      list    -- report a list of trained models
-      delete  -- delete one or more trained models
-      show    -- show a specific trained model
+      list    -- report a list of deployed models
+      delete  -- delete one or more deployed models
+      show    -- show a specific deployed model
+      infer   -- get an inference from a deployed model
 
 Use 'trained-models <operation> --help' for more information on a specific command."""
 
@@ -218,9 +220,15 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--modelid", argv=params, cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, id="--modelid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 

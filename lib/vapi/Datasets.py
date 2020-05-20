@@ -114,3 +114,17 @@ class Datasets:
             filename = None
 
         return filename
+
+    def clone(self, dsid, name):
+        """ Handles creation of dataset clone request.
+
+        :param dsid  UUID of the dataset to clone.
+        :param name  name of the new dataset."""
+
+        uri = f"/datasets/{dsid}/action"
+        body = {
+            "action" : "clone",
+            "name": name
+        }
+
+        return self.server.post(uri, json=body)

@@ -20,27 +20,31 @@
 
 import os
 import logging as logger
+import sys
 
-from paiv.server import Server
-from paiv.projects import Projects
-from paiv.Datasets import Datasets
-from paiv.Files import Files
-from paiv.Categories import Categories
-from paiv.ObjectTags import ObjectTags
-from paiv.Objectlabels import ObjectLabels
-from paiv.ActionTags import ActionTags
-from paiv.ActionLabels import ActionLabels
-from paiv.Dltasks import DlTasks
-from paiv.TrainedModels import TrainedModels
-from paiv.DeployedModels import DeployedModels
-from paiv.InferenceResults import InferenceResults
-from paiv.Users import Users
+from vapi.server import Server
+from vapi.projects import Projects
+from vapi.Datasets import Datasets
+from vapi.Files import Files
+from vapi.FileUserKeys import FileUserKeys
+from vapi.FileUserMetadata import FileUserMetadata
+from vapi.Categories import Categories
+from vapi.ObjectTags import ObjectTags
+from vapi.Objectlabels import ObjectLabels
+from vapi.ActionTags import ActionTags
+from vapi.ActionLabels import ActionLabels
+from vapi.Dltasks import DlTasks
+from vapi.TrainedModels import TrainedModels
+from vapi.DeployedModels import DeployedModels
+from vapi.InferenceResults import InferenceResults
+from vapi.Users import Users
 
 
 class Base:
 
     def __init__(self, host=None, token=None, instance=None, log_http_traffic=False):
         # Get required parameters from ENV if not provided on input
+        env_var = ""
         try:
             env_var = "VAPI_HOST"
             if host is None:
@@ -49,9 +53,8 @@ class Base:
             if token is None:
                 token = os.environ[env_var]
         except KeyError:
-            msg = F"Could not find environment variable {env_var}"
-            logger.error("PAIV:" + msg)
-            print(msg + "'\n")
+            msg = F"Could not find '{env_var}' information in environment or input parameters"
+            logger.error(" PAIV:" + msg)
             raise
 
         # Get optional parameters from ENV if not provided -- fallback to defaults if not present in ENV
@@ -69,6 +72,8 @@ class Base:
             self.projects = Projects(self.server)
             self.datasets = Datasets(self.server)
             self.files = Files(self.server)
+            self.file_keys = FileUserKeys(self.server)
+            self.file_metadata = FileUserMetadata(self.server)
             self.categories = Categories(self.server)
             self.object_tags = ObjectTags(self.server)
             self.object_labels = ObjectLabels(self.server)
@@ -92,6 +97,10 @@ class Base:
         """ Get the status code from the last server request"""
         return self.server.status_code()
 
+    def rsp_ok(self):
+        """ Check for OK status from last server request"""
+        return self.server.rsp_ok()
+
     def http_request_str(self):
         """ Gets the HTTP request that generated the current response"""
         return self.server.http_request_str()
@@ -99,3 +108,7 @@ class Base:
     def json(self):
         """ Get the json data from the last server response"""
         return self.server.json()
+
+    def text(self):
+        """ Get response body as a string """
+        return self.server.text()

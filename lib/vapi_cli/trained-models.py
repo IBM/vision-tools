@@ -18,14 +18,13 @@
 #
 #  IBM_PROLOG_END_TAG
 
-
+import logging as logger
 import sys
-import json
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
-# All of the PAIV CLI requires python 3.6 due to format string
+# All of Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -232,8 +231,7 @@ Where:
               The file must be an IBM Visual Insights (PowerAI Vision) Model
               export zip file.
 
-Import an exported dataset zip file to create the dataset in the server.
-Importing a dataset creates a new dataset."""
+Import an exported trained model zip file into the server.."""
 
 
 def import_model(params):
@@ -256,7 +254,7 @@ def import_model(params):
 # ---  Download_asset Operation  -------------------------------------
 download_asset_usage = """
 Usage:
-  trained-models download_asset (--modelid=<model-id> | --id=<model-id>) --assettype=<asset-type>
+  trained-models download-asset (--modelid=<model-id> | --id=<model-id>) --assettype=<asset-type>
                                [--filename=<file-name>]
 
 Where:
@@ -300,7 +298,7 @@ Where:
              from the output stream if a name is present. Otherwise
              the export will fail.
 
-Exports the indicated model for inference purposes."""
+Exports the indicated model to a zip file."""
 
 
 def export(params):
@@ -317,15 +315,16 @@ def export(params):
 
 
 cmd_usage = f"""
-Usage:  trained-models {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  trained-models {cli_utils.common_cmd_flags} <operation> [<args>...]
 
 Where:
-{paiv_cli_utils.common_cmd_flag_descriptions}
+{cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
       list    -- report a list of trained models
       delete  -- delete one or more trained models
       show    -- show a specific trained model
+      import  -- import a previously exported trained model.
       deploy  -- deploys a trained model for inferencing purposes.
       download-asset -- downloads the indicated asset for the model
       export  -- exports the indicated model
@@ -359,9 +358,15 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--modelid", argv=params, cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, id="--modelid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 

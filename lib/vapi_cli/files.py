@@ -18,14 +18,14 @@
 #
 #  IBM_PROLOG_END_TAG
 
-
+import logging as logger
 import sys
 import json
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
-# All of the PAIV CLI requires python 3.6 due to format string
+# All of Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -33,18 +33,23 @@ if sys.hexversion < 0x03060000:
 server = None
 
 # Common flag and description strings for usage statements
-ds_file_flags = "(--dsid=<dataset-id>)  (--fileid=<file-id>)"
+ds_file_flags = "(--dsid=<dataset-id>)  ((--fileid=<file-id> | --id=<file-id>))"
 ds_file_description = """   --dsid     Required parameter identifying the dataset to which
               the file belongs
-   --fileid   Required parameter identifying the targeted file"""
+   --fileid | --id   Required parameter identifying the targeted file"""
 
 #---  Upload Operation  ---------------------------------------------
 upload_usage = """
-Usage:   files upload --dsid=<dataset_id>  <file_paths>...
+Usage:   files upload --dsid=<dataset_id>  [--metadata=<String>] [--labels=<String>] <file_paths>...
 
 Where:
    --dsid   Required parameter that identifies the dataset into which the
             file(s) are to be loaded
+   --metadata  Optional parameter that contains a Json object string of
+            key/value pairs to be associated with the uploaded files.
+   --labels    Optional parameter that contains a Json Array of label
+            annotations to associate with the uploaded file. NOTE that
+            labels cannot be applied to multiple files.
    <file_paths>   Space separated list of file paths to upload
 
 Uploads one or more files to a dataset.
@@ -58,8 +63,13 @@ def upload(params):
     """
 
     dsid = params.get("--dsid", "missing_id")
+    expectedArgs = {
+        '--metadata': 'user-metadata',
+        '--labels': 'labels'
+    }
+    kwargs = translate_flags(expectedArgs, params)
 
-    rsp = server.files.upload(dsid, params["<file_paths>"])
+    rsp = server.files.upload(dsid, params["<file_paths>"], **kwargs)
     if rsp is None:
         try:
             results = server.json()["resultList"]
@@ -146,8 +156,8 @@ def delete(params):
 #---  List/Report Operation  ----------------------------------------
 list_usage = f"""
 Usage:  files list --dsid=<dataset_id> [--catid=<category_id>] [--parentid=<parent_id>]
-             [--sort=<string>] [--summary]
-             {paiv_cli_utils.limit_skip_flags}
+             [--query=<query_string>] [--sort=<string>] [--summary]
+             {cli_utils.limit_skip_flags}
 
 Where:
    --dsid    Required parameter that identifies the dataset to which the files
@@ -156,6 +166,12 @@ Where:
              indicated category. Only 1 category can be specified
    --parentid  Optional parameter to filter results to files with the
              indicated parent.  Only 1 parent can be specified.
+   --query   Optional parameter containing set of comma separated query terms.
+             Each query term has 3 parts; a field name, a comparison, and a value.
+             Each of the 3 parts is separated by whitespace. Possible comparision strings
+             are '==' (equal), '!=' (not equal), '>' (greater than), '<' (less than),
+             '>=' (greater than or equal) and '<=' (less than or equal). Values can be 
+             quoted strings or unquoted numbers
    --sort    Comma separated string of field names on which to sort.
              Add " DESC" after a field name to change to a descending sort.
              If adding " DESC", the field list must be enclosed in quotes.
@@ -176,6 +192,7 @@ def report(params):
 
     expectedArgs = {'--catid': 'category_id',
                     '--parentid': 'parent_id',
+                    '--query': 'query',
                     '--sort': 'sortby',
                     '--limit': 'limit',
                     '--skip': 'skip'}
@@ -214,12 +231,13 @@ def show(params):
 
 # ---  Download Operation  -------------------------------------------
 download_usage = f"""
-Usage:  files download --dsid=<dataset_id> --fileid=<file_id> [--thumbnail]
+Usage:  files download --dsid=<dataset_id> --fileid=<file_id> [--thumbnail] [--output=<outputfilename>]
 
 Where:
 {ds_file_description}
    --thumbnail   Optional parameter to download the thumbnail instead of
                  the file.
+   --output      Optional parameter identifying the name of the output file  path
 
 Downloads the image associated with the indicated file."""
 
@@ -228,10 +246,110 @@ def download(params):
     """Handles the 'download' operation to show details of a single file"""
 
     dsid = params.get("--dsid", "missing_id")
-    fileid = params.get("--fileid", "missing_id")
+    fileid = params.get("--fileid", "not-provided")
+    thumbnail = params.get("--thumbnail", False)
+    fname = params.get("--output", None)
 
-    print("'download' operation not yet implemented", file=sys.stderr)
-    return -1
+    rsp = server.files.download(dsid, fileid, thumbnail, fname)
+    if server.server.rsp_ok():
+        reportSuccess(server, f"Downloaded file {fileid} from dataset {dsid} into file {rsp}")
+    else:
+        reportApiError(server, f"Failed to download file {fileid} from dataset {dsid}; status={server.server.status_code()}")
+
+
+
+# ---  Copy Operation  ---------------------------------------------
+copy_usage = """
+Usage:   files copy --from=<origin_dataset_id> --to=<destination_dataset_id>  <file_ids>...
+
+Where:
+   --from   Required parameter that identifies the dataset that the
+            file(s) are to be copied from (the origin dataset)
+   --to     Required parameter that identifies the dataset that the
+            file(s) are to be copied to (the destination dataset)
+   <file_ids>   Space separated list of file ids to copied
+
+Copies one or more files from the origin dataset into the destination dataset.
+All associated category and annotations are copied; and created in the
+destination dataset if they do not already exist."""
+
+
+def copy(params):
+    """Handles the 'copy' operation for loading files into a dataset.
+
+    The "<file_paths>" from 'params' is passed to the library.
+    """
+
+    fromDs = params.get("--from", "missing-id")
+    toDs = params.get("--to", "")
+    rsp = server.files.copymove("copy", fromDs, toDs, params["<file_ids>"])
+    if rsp is None:
+        try:
+            results = server.json()["result_list"]
+            total = len(results)
+            success = sum([1 for x in results if "new_file_id" in x])
+            fail = total - success
+        except:
+            total = "?"
+            success = "?"
+            fail = "?"
+
+        reportApiError(server,
+                       f"Failure copying files from dataset {fromDs} to dataset {toDs}; total={total}, successes={success}, fails={fail}")
+    else:
+        try:
+            results = server.json()["result_list"]
+            total = len(results)
+        except:
+            total = "?"
+        reportSuccess(server, f"Successfully copied {total} files to dataset {toDs}")
+
+
+# ---  Move Operation  ---------------------------------------------
+move_usage = """
+Usage:   files move --from=<origin_dataset_id> --to=<destination_dataset_id>  <file_ids>...
+
+Where:
+   --from   Required parameter that identifies the dataset that the
+            file(s) are to be moved from (the origin dataset)
+   --to     Required parameter that identifies the dataset that the
+            file(s) are to be moved to (the destination dataset)
+   <file_ids>   Space separated list of file ids to moved
+
+Moves one or more files from the origin dataset into the destination dataset.
+All associated category and annotations are copied; and created in the
+destination dataset if they do not already exist."""
+
+
+def move(params):
+    """Handles the 'move' operation for loading files into a dataset.
+
+    The "<file_paths>" from 'params' is passed to the library.
+    """
+
+    fromDs = params.get("--from", "missing-id")
+    toDs = params.get("--to", "")
+    rsp = server.files.copymove("move", fromDs, toDs, params["<file_ids>"])
+    if rsp is None:
+        try:
+            results = server.json()["result_list"]
+            total = len(results)
+            success = sum([1 for x in results if "new_file_id" in x])
+            fail = total - success
+        except:
+            total = "?"
+            success = "?"
+            fail = "?"
+
+        reportApiError(server,
+                       f"Failure copying files from dataset {fromDs} to dataset {toDs}; total={total}, successes={success}, fails={fail}")
+    else:
+        try:
+            results = server.json()["result_list"]
+            total = len(results)
+        except:
+            total = "?"
+        reportSuccess(server, f"Successfully moved {total} files to dataset {toDs}")
 
 
 #---  savelabels Operation  -----------------------------------------
@@ -304,9 +422,9 @@ def getlabels(params):
 
 
 cmd_usage = f"""
-Usage:  files {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  files {cli_utils.common_cmd_flags} <operation> [<args>...]
 
-Where: {paiv_cli_utils.common_cmd_flag_descriptions}
+Where: {cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
       upload   -- upload file(s) to a dataset
@@ -315,6 +433,8 @@ Where: {paiv_cli_utils.common_cmd_flag_descriptions}
       delete   -- delete one or more files
       show     -- show a metadata for a specific file
       download -- download a file
+      copy     -- copies one or more files from one dataset to another
+      move     -- moves one or more files from one dataset to another
       savelabels -- save object labels to a file
       getlabels  -- get object labels associated with a file
 
@@ -329,6 +449,8 @@ usage_stmt = {
     "delete": delete_usage,
     "show": show_usage,
     "download": download_usage,
+    "copy": copy_usage,
+    "move": move_usage,
     "getlabels": getlabels_usage,
     "savelabels": savelabels_usage
 }
@@ -341,6 +463,8 @@ operation_map = {
     "delete": delete,
     "show": show,
     "download": download,
+    "copy": copy,
+    "move": move,
     "getlabels": getlabels,
     "savelabels": savelabels
 }
@@ -349,9 +473,15 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, argv=params,cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, id="--fileid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
-        server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+        try:
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
+        except Exception as e:
+            print("Error: Failed to setup server.", file=sys.stderr)
+            logger.debug(e)
+            return 1
+
         args.operation(args.op_params)
 
 
