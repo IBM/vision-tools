@@ -108,7 +108,7 @@ Perform the following steps for the easiest use:
 e.g.
 ```
 export VAPI_HOST=my-server.your-company.com
-export VAPI_HOST=my-server.your-company.com
+export VAPI_TOKEN=`vision user token --user janedoe --password Vis10nDemo`
 echo $VAPI_TOKEN
 ```
 

@@ -22,12 +22,19 @@ But at this time, the following steps can be used to setup and use the IBM Visua
 
  1. Ensure Python is at version 3.6 or above (e.g. `python3 -V`). If it is not, upgrade python 
  using your favorite install manager (pip, conda, etc.)
- 1. Ensure that the Python _requests_ package is installed. (e.g. `pip install requests`)
- 1. Clone this repo. (e.g. `git clone git@github.com:IBM/vision-tools.git`)
+ 1. Ensure that the Python _requests_ package is installed.
+ 1. Clone this repo.
  1. Add the cloned repo's `cli` directory to your `PATH` environment variable.
-    (e.g. `PATH=$PATH:$HOME/vision-tools/cli`) 
  1. Add the cloned repos's `lib` directory to your `PYTHONPATH` environment variable.
-    (e.g. `export PYTHONPATH=$PYTHONPATH:$HOME/vision-tools/lib`)
+
+Example commands...
+```
+cd $HOME
+pip install requests
+git clone git@github.com:IBM/vision-tools.git
+PATH=$PATH:$HOME/vision-tools/cli
+export PYTHONPATH=$PYTHONPATH:$HOME/vision-tools/lib
+```
 
 At this point, the Visual Insights API CLI tools should be accessible. Run `vision --help` to see that the
 command can be found. `vision datasets --help` can be run to ensure that sub-commands are accessible.
@@ -111,9 +118,16 @@ with a base URL of "`https://my-server.your-company.com/visual-insights`".<br>
 Assume that the user is `janedoe` and her password is `Vis10nDemo`.
 
 Perform the following steps for the easiest use:
- 1. set VAPI_HOST -- `export VAPI_HOST=my-server.your-company.com`
- 2. set VAPI_TOKEN -- `export VAPI_TOKEN=$(vision users token --user janedo --password Vis10nDemo)`
- 3. ensure token is set -- `echo $VAPI_TOKEN`
+ 1. set VAPI_HOST
+ 2. set VAPI_TOKEN
+ 3. ensure token is set
+
+Example commands...
+```
+export VAPI_HOST=my-server.your-company.com
+export VAPI_TOKEN=`vision user token --user janedoe --password Vis10nDemo`
+echo $VAPI_TOKEN
+```
 
 If all went well, `vision` should report results from the server; try `vision datasets list --summary`.
 If something failed, see the "debugging" section below.
@@ -125,10 +139,18 @@ the Visual Insights Application is `my-visual-insights-v120`.<br>
 Assume that the user is `janedoe` and her password is `Vis10nDemo`.
 
 Perform the following steps for the easiest use:
- 1. set VAPI_HOST -- `export VAPI_HOST=my-server.your-company.com`
- 2. set VAPI_TOKEN -- `export VAPI_TOKEN=$(vision users token --user janedo --password Vis10nDemo)`
- 3. set VAPI_INSTANCE -- `export VAPI_INSTANCE="my-visual-insights-v120"`
- 4. ensure token is set -- `echo $VAPI_TOKEN`
+ 1. set VAPI_HOST
+ 2. set VAPI_INSTANCE
+ 3. set VAPI_TOKEN
+ 4. ensure token is set
+
+Example commands...
+```
+export VAPI_HOST=my-server.your-company.com
+export VAPI_INSTANCE=my-visual-insights-v120
+export VAPI_TOKEN=`vision user token --user janedoe --password Vis10nDemo`
+echo $VAPI_TOKEN
+```
 
 Note that the only difference is setting the `VAPI_INSTANCE` environment variable.
 
