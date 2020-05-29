@@ -163,11 +163,15 @@ def report(params):
 
 #---  Export Operation  ----------------------------------------------
 export_usage = f"""
-Usage:  fmetadata export --dsid=<dataset_id>
+Usage:  fmetadata export --dsid=<dataset_id> [--format=<format_str>]
 
 Where:
    --dsid   Required parameter that identifies the dataset into which the
             user metadata key is to be created.
+   --format Optional parameter indicating format of output. Only supported
+            'comma' (for CSV output) or 'pipe' (for unix style vertical bar 
+            separated fields)
+
 
 Exports file user metadata from all files in a dataset in CSV format."""
 
@@ -176,8 +180,9 @@ def export(params):
     """Exports file metadata for all files in a dataset in CSV format """
 
     dsid = params.get("--dsid", "missing_id")
+    fmt = params.get("--format", None)
 
-    server.file_metadata.export(dsid)
+    server.file_metadata.export(dsid, fmt=fmt)
     if server.rsp_ok():
         # Must strip the trailing new line.
         reportSuccess(server, server.raw_http_response().text[:-1])
