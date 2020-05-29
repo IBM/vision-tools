@@ -19,17 +19,16 @@
 
 
 """
-Module providing output functions for the various PAIV CLI commands.
+Module providing output functions for the various Vision Tools commands.
 """
 import os
 import sys
-import textwrap
 import json
 from types import SimpleNamespace
-import docopt
+from vapi_cli.docopt import docopt
 import logging as logger
 
-# All of the PAIV CLI requires python 3.6 due to format string
+# All of the Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -65,7 +64,7 @@ token = None
 def get_valid_input(usage, operation_map, id=None, argv=None, cmd_flags=None):
     """ Processes input parameters and creates namespace for returned results.
 
-    This function can be used with PAIV commands that have an 'operation'
+    This function can be used with Vision Tools commands that have an 'operation'
     parameter
 
     The results namespace that is composed of:
@@ -90,7 +89,7 @@ def get_valid_input(usage, operation_map, id=None, argv=None, cmd_flags=None):
 
     #print(f"@@@ argv={argv}", file=sys.stderr)
 
-    cmd_results = docopt.docopt(usage["usage"], options_first=True, argv=argv)
+    cmd_results = docopt(usage["usage"], options_first=True, argv=argv)
     if cmd_flags is not None:
         cmd_results.update(cmd_flags)
     results = SimpleNamespace()
@@ -120,7 +119,7 @@ def get_valid_input(usage, operation_map, id=None, argv=None, cmd_flags=None):
             nargv = [cmd_results["<operation>"]] + cmd_results["<args>"]
             #nargv = cmd_results["<args>"]
             #print(f"@@@ nargv={nargv}", file=sys.stderr)
-            op_results = docopt.docopt(usage[cmd_results["<operation>"]], argv=nargv)
+            op_results = docopt(usage[cmd_results["<operation>"]], argv=nargv)
             if id is not None:
                 # need to ensure that the flag specified in the id parameter is setup to
                 # match "-id" flag.
@@ -268,9 +267,9 @@ def set_output_controls(params):
                                datefmt='%H:%M:%S', level=log_level)
 
     if not show_httpdetail:
-        show_httpdetail = "PAIVCLI_HTTPDETAIL" in os.environ
+        show_httpdetail = "VAPI_HTTPDETAIL" in os.environ
     if not json_only:
-        json_only = "PAIVCLI_JSONOUTPUT" in os.environ
+        json_only = "VAPI_JSONONLY" in os.environ
 
 
 def print_http_detail(server):

@@ -1,5 +1,9 @@
 *~
+*.sav
 .DS_Store
 __pycache__/
 test-wk-dir/
 bats/
+*.egg-info/
+build/
+dist/

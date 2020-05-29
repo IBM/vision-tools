@@ -21,11 +21,11 @@
 import logging as logger
 import sys
 import json
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
-# All of the PAIV CLI requires python 3.6 due to format string
+# All of Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -175,7 +175,7 @@ Where:
                confidence value from auto-label generated labels
    --max_conf  Floating point number between 0.0 and 1.0 that is the minimum
                confidence value from auto-label generated labels
-{paiv_cli_utils.limit_skip_flag_descriptions}
+{cli_utils.limit_skip_flag_descriptions}
 
 
 Deletes the indicated object label(s).
@@ -219,7 +219,7 @@ Usage:  object_labels list --dsid=<dataset_id>
                       [--fileid=<file_id>] [--tagids=<tag_id>...]
                       [--modelid=<model_id>] [--gen_type=<gen_type>]
                       [--min_conf=<float>] [--max_conf=<float>]
-                      {paiv_cli_utils.limit_skip_flags}
+                      {cli_utils.limit_skip_flags}
                       [--summary]
 
 
@@ -237,7 +237,7 @@ Where:
                confidence value from auto-label generated labels
    --max_conf  Floating point number between 0.0 and 1.0 that is the minimum
                confidence value from auto-label generated labels
-{paiv_cli_utils.limit_skip_flag_descriptions}
+{cli_utils.limit_skip_flag_descriptions}
   --summary Flag requesting only summary output for each dataset returned
 
 Generates a JSON list of object labels matching the input criteria.
@@ -298,9 +298,9 @@ def show(params):
 
 
 cmd_usage = f"""
-Usage:  object_labels {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  object_labels {cli_utils.common_cmd_flags} <operation> [<args>...]
 
-Where: {paiv_cli_utils.common_cmd_flag_descriptions}
+Where: {cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
       create   -- create an object label (annotation) in a dataset
@@ -335,10 +335,10 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, argv=params, cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, argv=params, cmd_flags=cmd_flags)
     if args is not None:
         try:
-            server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
         except Exception as e:
             print("Error: Failed to setup server.", file=sys.stderr)
             logger.debug(e)

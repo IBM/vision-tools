@@ -20,12 +20,11 @@
 
 import logging as logger
 import sys
-import json
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
-# All of the PAIV CLI requires python 3.6 due to format string
+# All of Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -255,7 +254,7 @@ def import_model(params):
 # ---  Download_asset Operation  -------------------------------------
 download_asset_usage = """
 Usage:
-  trained-models download_asset (--modelid=<model-id> | --id=<model-id>) --assettype=<asset-type>
+  trained-models download-asset (--modelid=<model-id> | --id=<model-id>) --assettype=<asset-type>
                                [--filename=<file-name>]
 
 Where:
@@ -316,10 +315,10 @@ def export(params):
 
 
 cmd_usage = f"""
-Usage:  trained-models {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  trained-models {cli_utils.common_cmd_flags} <operation> [<args>...]
 
 Where:
-{paiv_cli_utils.common_cmd_flag_descriptions}
+{cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
       list    -- report a list of trained models
@@ -359,10 +358,10 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--modelid", argv=params, cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, id="--modelid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
         try:
-            server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
         except Exception as e:
             print("Error: Failed to setup server.", file=sys.stderr)
             logger.debug(e)

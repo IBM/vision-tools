@@ -15,29 +15,7 @@ The goal is that the tools will support all of the endpoints and options availab
 Visual Insight ReST API. However, not everything is supported at this time.
 
 ## Setup
-### Setting up Access to the Tools
-It is a long term goal to create a PIP install image to make the tools easier to install and use.
-But at this time, the following steps can be used to setup and use the IBM Visual Insight Tools.
-(these steps assume that the cloned repo is in your home directory ("`$HOME`"))
-
- 1. Ensure Python is at version 3.6 or above (e.g. `python3 -V`). If it is not, upgrade python 
- using your favorite install manager (pip, conda, etc.)
- 1. Ensure that the Python _requests_ package is installed.
- 1. Clone this repo.
- 1. Add the cloned repo's `cli` directory to your `PATH` environment variable.
- 1. Add the cloned repos's `lib` directory to your `PYTHONPATH` environment variable.
-
-Example commands...
-```
-cd $HOME
-pip install requests
-git clone git@github.com:IBM/vision-tools.git
-PATH=$PATH:$HOME/vision-tools/cli
-export PYTHONPATH=$PYTHONPATH:$HOME/vision-tools/lib
-```
-
-At this point, the Visual Insights API CLI tools should be accessible. Run `vision --help` to see that the
-command can be found. `vision datasets --help` can be run to ensure that sub-commands are accessible.
+Setup is performed via `pip install vision-tools`.
 
 ## Using the CLI Tool
 ### Introduction
@@ -47,6 +25,8 @@ All of the CLI operations are driven by a single command -- `vision`. This comma
  * datasets
  * categories
  * files
+ * fkeys
+ * fmetadata
  * object-tags
  * object-labels
  * action-tags
@@ -87,6 +67,8 @@ Usage:  vision [--httpdetail] [--jsonoutput] [--host=<host>] [--token=<token>] [
         categories     -- work with category entities
         datasets       -- work with dataset entities
         files          -- work with dataset file entities
+        fkeys          -- work with user file metadata keys
+        fmetadata      -- work with user file metadata key/value pairs
         object-tags    -- work with object detection tag entities
         object-labels  -- work with object detection label entities (aka annotation entities)
         dltasks        -- work with DL training tasks
@@ -104,7 +86,8 @@ token (`--token`). It is often easier to specify this information via environmen
 variable is used for the hostname and the `$VAPI_TOKEN` variable is used for the token. With this information,
 `vision` will generate a base URL of `https://${VAPI_HOST}/visual-insights/api` to access the server.
 
-In some installations, including those running IBM PowerAI Vision instead of IBM Visual Insights, 
+In some installations, including those running IBM PowerAI Vision instead of IBM Visual Insights or running 
+a cloud base server, 
 the `$VAPI_INSTANCE` environment variable will be needed to adjust the generated base URL. Exporting a value in
 `$VAPI_INSTANCE` will cause `vision` to generate a base URL of `https://${VAPI_HOST}/${VAPI_INSTANCE}/api`.
 
@@ -122,7 +105,7 @@ Perform the following steps for the easiest use:
  2. set VAPI_TOKEN
  3. ensure token is set
 
-Example commands...
+e.g.
 ```
 export VAPI_HOST=my-server.your-company.com
 export VAPI_TOKEN=`vision user token --user janedoe --password Vis10nDemo`
@@ -139,17 +122,18 @@ the Visual Insights Application is `my-visual-insights-v120`.<br>
 Assume that the user is `janedoe` and her password is `Vis10nDemo`.
 
 Perform the following steps for the easiest use:
- 1. set VAPI_HOST
- 2. set VAPI_INSTANCE
- 3. set VAPI_TOKEN
- 4. ensure token is set
+ 1. set VAPI_HOST -- `export VAPI_HOST=my-server.your-company.com`
+ 2. set VAPI_TOKEN -- `export VAPI_TOKEN=$(vision users token --user janedo --password Vis10nDemo)`
+ 3. set VAPI_INSTANCE -- `export VAPI_INSTANCE="my-visual-insights-v120"`
+ 4. ensure token is set -- `echo $VAPI_TOKEN`
 
-Example commands...
+e.g.
 ```
 export VAPI_HOST=my-server.your-company.com
-export VAPI_INSTANCE=my-visual-insights-v120
-export VAPI_TOKEN=`vision user token --user janedoe --password Vis10nDemo`
+export VAPI_TOKEN=$(vision users token --user janedo --password Vis10nDemo)
+export VAPI_INSTANCE="my-visual-insights-v120"
 echo $VAPI_TOKEN
+
 ```
 
 Note that the only difference is setting the `VAPI_INSTANCE` environment variable.
