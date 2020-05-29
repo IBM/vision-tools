@@ -94,7 +94,7 @@ class TrainedModels:
                     and it cannot be determined from HTTP response header information,
                     FileNotFoundError will be raised."""
 
-        uri = f"/trained-models/{model_id}/download/{asset_type}"
+        uri = f"/trained-models/{model_id}/assets/{asset_type}/download"
         logger.debug(F"download_asset: URL={uri}; filename={filename}")
 
         self.server.get(uri, stream=True)

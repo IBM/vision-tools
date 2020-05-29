@@ -20,9 +20,9 @@
 
 import logging as logger
 import sys
-import paiv
-import paiv_cli_utils
-from paiv_cli_utils import reportSuccess, reportApiError, translate_flags
+import vapi
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
 ds_tag_flags = "(--dsid=<dataset-id>)  (--tagid=<tag-id> | --id=<tag_id>)"
 ds_tag_description = """   --dsid    Required parameter identifying the dataset to which
@@ -177,9 +177,9 @@ def show(params):
 
 
 cmd_usage = f"""
-Usage:  object_tags {paiv_cli_utils.common_cmd_flags} <operation> [<args>...]
+Usage:  object_tags {cli_utils.common_cmd_flags} <operation> [<args>...]
 
-Where: {paiv_cli_utils.common_cmd_flag_descriptions}
+Where: {cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
       create   -- create an object tag in a dataset
@@ -212,10 +212,10 @@ operation_map = {
 def main(params, cmd_flags=None):
     global server
 
-    args = paiv_cli_utils.get_valid_input(usage_stmt, operation_map, id="--tagid", argv=params, cmd_flags=cmd_flags)
+    args = cli_utils.get_valid_input(usage_stmt, operation_map, id="--tagid", argv=params, cmd_flags=cmd_flags)
     if args is not None:
         try:
-            server = paiv.connect_to_server(paiv_cli_utils.host_name, paiv_cli_utils.token)
+            server = vapi.connect_to_server(cli_utils.host_name, cli_utils.token)
         except Exception as e:
             print("Error: Failed to setup server.", file=sys.stderr)
             logger.debug(e)

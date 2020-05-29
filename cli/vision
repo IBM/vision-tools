@@ -19,14 +19,14 @@
 #  IBM_PROLOG_END_TAG
 import sys
 import importlib
-import paiv_cli_utils
-from docopt import docopt
+import vapi_cli.cli_utils as cli_utils
+from vapi_cli.docopt import docopt
 
 usage_stmt = f"""
-Usage:  vision {paiv_cli_utils.common_cmd_flags} [-?] <entity> [<args>...]
+Usage:  vision {cli_utils.common_cmd_flags} [-?] <entity> [<args>...]
 
 Where:
-{paiv_cli_utils.common_cmd_flag_descriptions}
+{cli_utils.common_cmd_flag_descriptions}
    -?  displays this help message.
 
    <entity> is required and must be one of:
@@ -100,8 +100,9 @@ if __name__ == "__main__":
             entity = entity_map.get(args["<entity>"], None)
 
             try:
-                pkg = importlib.import_module(entity, package=None)
+                pkg = importlib.import_module(f"vapi_cli.{entity}", package=None)
                 pkg.main(argv, cmd_flags=args)
-            except ModuleNotFoundError:
+            except ModuleNotFoundError as err:
                 print(f"ERROR: Unknown entity -- {entity}", file=sys.stderr)
                 print(usage_stmt, file=sys.stderr)
+                raise err

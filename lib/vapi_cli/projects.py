@@ -18,14 +18,14 @@
 #
 #  IBM_PROLOG_END_TAG
 import sys
-import paiv
+import vapi
 import os
 import argparse
 import json
 import textwrap
 
-import paiv_cli_utils
-from paiv_cli_utils import show_httpdetail, reportApiError, reportSuccess
+import vapi_cli.cli_utils
+from vapi_cli.cli_utils import show_httpdetail, reportApiError, reportSuccess
 
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
@@ -296,7 +296,7 @@ def main(params):
 
     args = get_valid_input(params)
     if args is not None:
-        paiv_cli_utils.show_httpdetail = args.httpdetail
+        cli_utils.show_httpdetail = args.httpdetail
         server = paiv.connect_to_server()
 
         globals()[args.cmd.replace("-", "_")](args)
