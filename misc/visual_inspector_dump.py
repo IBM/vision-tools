@@ -110,16 +110,20 @@ def getInputs():
                       help="(Optional) UUID of a target dataset")
   parser.add_argument('--url', action="store", dest="url", required=True,
                       help="Vision URL eg https://ip/powerai-vision WITHOUT trailing slash or /api")
-  parser.add_argument('--output', action="store", dest="output", required=True,
-                      help="Output file name eg output.csv")
   parser.add_argument('--user', action="store", dest="user", required=True,
                       help="Username")
   parser.add_argument('--passwd', action="store", dest="passwd", required=True,
                       help="Password")
   parser.add_argument('--showall', action="store_true", dest="showall", required=False,
                       help="(Optional) Show all image data. By default, this tool filters training data.")
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument('--output', action="store", dest="output",
+                      help="Output file name eg output.csv")
+  group.add_argument('--migrate-metadata', action="store_true", dest="migrate",
+                      help="Migrate Visual Inspector 1.0 metadata to 1.1 formats. Does not create CSV output. Requires IBM Visual Insights or Maximo Visual Inspection 1.2.0.1 or greater")
   parser.add_argument('--debug', action="store_true", dest="debug", required=False,
                       help="Set Debug logging level")
+
 
   
   try:
@@ -156,6 +160,7 @@ def getFileList(dsId, qparm=None):
 
 def postUserMetadata(dsId, fileId, jsonBody):
   result = None
+  success = False
   url = cfg["url"] + "/api/datasets/" + dsId + "/files/" + fileId + "/user-metadata"
   logging.debug("postUserMetadata: URL= {}".format(url))
   resp = post(url, json=jsonBody)
@@ -163,19 +168,23 @@ def postUserMetadata(dsId, fileId, jsonBody):
   if rspOk(resp):
     result = resp.json()
     logging.debug("postUserMetadata: result json= {}".format(result))
+    success = True
+  return success
 
 
 # -------------------------------------
 # Parse and save file metadata
 #
-def saveMetadata(dsFiles, csvfilename, showall=False):
+def saveMetadata(dsFiles):
   # save metadata through visual inspection's user-metadata API
+  logging.info("Beginning migration for %d files..." % len(dsFiles))
+  successcount = 0
   for dsFile in dsFiles:
     if "___" in dsFile['original_file_name']:
-      json = {}
+      filejson = {}
       visinspectdata = dsFile['original_file_name'].split('___')
 
-      # default keys common to both Object Detection and Image Classification      
+      # default keys common to both Object Detection and Image Classification
       keys = ['InspectionType', 'Timestamp', 'TriggerID', 'Reference', 'TriggerString', 'InspectionName', 'InspectionLocation', 'InspectionDevice']
       # add additional metadata keys based on the parsing of the original file name (INSPECTION vs TRAINING)
       if visinspectdata[0] == "INSPECTION":
@@ -196,9 +205,11 @@ def saveMetadata(dsFiles, csvfilename, showall=False):
         if "__" in data:
           listItem = data.split("__")
           visinspectdata[count] = listItem
-
+      logging.debug("visinspectdata split into an array of length %d" % len(visinspectdata))
       if visinspectdata[0] == "INSPECTION" and visinspectdata[9] == "ObjectDetection":
-        if visinspectdata[19] == "":
+        #this field may or may not exist depending on the version of the original app
+        #note that we check that the LENGTH is greater than 19 (ie there's at least a foo[19] in the zero-indexed array
+        if (len(visinspectdata) > 19) and (visinspectdata[19] == ""):
           # no failed labels were found; replace with an empty array
           visinspectdata[19] = []
         # reformat the list of bounding boxes
@@ -211,9 +222,15 @@ def saveMetadata(dsFiles, csvfilename, showall=False):
         visinspectdata[14] = bbBoxesList
 
       # merge the metadata keys and values to send as the json body
-      json = dict(zip(keys, visinspectdata))
-      postUserMetadata(dsFile['datasetid'], dsFile['_id'], json)
+      filejson = dict(zip(keys, visinspectdata))
+      logging.debug(filejson)
+      #TODO: re-save bounding boxes as inferred label type
+      success = postUserMetadata(dsFile['datasetid'], dsFile['_id'], filejson)
+      if success:
+        successcount += 1
 
+  logging.info("Migration complete. Migrated %d records" % (successcount))
+  return successcount
 
 # -------------------------------------
 # Generate CSV from dictionary
@@ -223,8 +240,8 @@ def generateCSV(filename, rows, showall=False):
   # Generate minimal info CSV
   with open(filename, 'w') as csvfile:
     writer = csv.writer(csvfile)
-    headers = ['DataSetID', 'DataSetName', 'Owner', 'URL', 'InspectionType', 'FormattedDate', 'RawDate', 'TriggerID', 'Reference', 
-               'TriggerString', 'InspectionName', 'InspectionResult', 'InspectionLocation', 'InspectionDevice', 'InspectionModelType', 
+    headers = ['DataSetID', 'DataSetName', 'Owner', 'URL', 'InspectionType', 'FormattedDate', 'RawDate', 'TriggerID', 'Reference',
+               'TriggerString', 'InspectionName', 'InspectionResult', 'InspectionLocation', 'InspectionDevice', 'InspectionModelType',
                'InspectionLabels', 'InspectionScores', 'InspectionThresholds', 'InspectionExpectedCounts',
                'InspectionBoundingBoxes', 'InspectionAboveBelow', 'InspectionPassFail', 'InspectionAndOr', 'InspectionLevel', 'FailedLabels']
     writer.writerow(headers)
@@ -259,11 +276,9 @@ def generateCSV(filename, rows, showall=False):
   return numrows
 
 
-def dumpinspectordata(dsid=None, user="admin", passwd="passw0rd", url="http://ip/powerai-vision", output="out.csv", showall=False):
-  # set up the auth token
-  setupAPIAccess(url, user, passwd)
-
-  # get list of all dataset
+# return an array of files with extra data attached like the datasetid, URL, and owner that are not available via the API response directly
+def enumeratefiles(dsid=None, url="http://ip/instance-name"):
+  # get list of all datasets
   logging.info("Retrieving global dataset list...")
   datasets = getDatasets()
   if dsid:
@@ -286,13 +301,17 @@ def dumpinspectordata(dsid=None, user="admin", passwd="passw0rd", url="http://ip
       file['url'] = url + "/" + "#/datasets/" + dataset['_id'] + "/label?imageId=" + file['_id']
     # append this into the master list for csv processing...
     files.extend(dsfiles)
+    
+  return files
 
-  # parse files and save user metadata to the file
-  json = saveMetadata(files, output, showall)
+
+
+
+def dumpinspectordata(dsid=None, url="http://ip/instance-name", output="out.csv", showall=False):
+  
+  files = enumeratefiles(dsid=dsid, url=url)
 
   # output our CSV for additional parsing
-  rowswritten = generateCSV(output, files, showall)
-  logging.info("Wrote %d rows to %s. We filtered out %d items." % (rowswritten, output, len(files) - rowswritten))
 
 
 if __name__ == '__main__':
@@ -303,6 +322,26 @@ if __name__ == '__main__':
                       level=loglevel)
   
   if args is not None:
-    dumpinspectordata(dsid=args.dsid, user=args.user, passwd=args.passwd, url=args.url, output=args.output, showall=args.showall)
+  
+    # set up the auth token
+    setupAPIAccess(url=args.url, user=args.user, passwd=args.passwd)
+
+    #get the list of affected files that we're potentially acting upon
+    #note that filters or other rules might mean that we may not actually touch ALL of these
+    files = enumeratefiles(dsid=args.dsid, url=args.url)
+
+    if args.migrate:
+      logging.debug("Starting migration of down-level inspector data to metadata APIs...")
+      numfilesmigrated = saveMetadata(files)
+      logging.info("Finished migrating data for %d files." % (numfilesmigrated))
+      if numfilesmigrated != len(files):
+        logging.warning("We failed to migrate data for %d files." % (len(files) - numfilesmigrated))
+
+    elif args.output:
+      logging.debug("Saving CSV metadata to %s" % (args.output))
+      rowswritten = generateCSV(args.output, files, args.showall)
+      logging.info("Wrote %d rows to %s. We filtered out %d items." % (rowswritten, args.output, len(files) - rowswritten))
+    else:
+      logging.error("Did not find a valid command or argument to parse.")
   else:
     exit(1)
