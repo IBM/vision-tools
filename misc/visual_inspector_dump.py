@@ -110,16 +110,23 @@ def getInputs():
                       help="(Optional) UUID of a target dataset")
   parser.add_argument('--url', action="store", dest="url", required=True,
                       help="Vision URL eg https://ip/powerai-vision WITHOUT trailing slash or /api")
-  parser.add_argument('--output', action="store", dest="output", required=True,
-                      help="Output file name eg output.csv")
   parser.add_argument('--user', action="store", dest="user", required=True,
                       help="Username")
   parser.add_argument('--passwd', action="store", dest="passwd", required=True,
                       help="Password")
   parser.add_argument('--showall', action="store_true", dest="showall", required=False,
                       help="(Optional) Show all image data. By default, this tool filters training data.")
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument('--output', action="store", dest="output",
+                      help="Output file name eg output.csv")
+  group.add_argument('--migrate-metadata', action="store_true", dest="migrate",
+                      help="Migrate Visual Inspector 1.0 metadata to 1.1 formats. Does not create CSV output. Requires IBM Visual Insights or Maximo Visual Inspection 1.2.0.1 or greater")
   parser.add_argument('--debug', action="store_true", dest="debug", required=False,
                       help="Set Debug logging level")
+  parser.add_argument('--newerthan', action="store", dest="newerthan", required=False, default=0,
+                      help="(Optional) Output only records newer than this timestamp in YYYYMMDDHHmmss format eg \"20200622134840\" is \"2020 June 22, 13:48:40\"")
+
+
 
   
   try:
@@ -156,6 +163,7 @@ def getFileList(dsId, qparm=None):
 
 def postUserMetadata(dsId, fileId, jsonBody):
   result = None
+  success = False
   url = cfg["url"] + "/api/datasets/" + dsId + "/files/" + fileId + "/user-metadata"
   logging.debug("postUserMetadata: URL= {}".format(url))
   resp = post(url, json=jsonBody)
@@ -163,19 +171,57 @@ def postUserMetadata(dsId, fileId, jsonBody):
   if rspOk(resp):
     result = resp.json()
     logging.debug("postUserMetadata: result json= {}".format(result))
+    success = True
+  return success
 
+
+# return an array of files with extra data attached like the datasetid, URL, and owner that are not available via the API response directly
+def enumeratefiles(dsid=None, url="http://ip/instance-name"):
+  # get list of all datasets
+  logging.info("Retrieving global dataset list...")
+  datasets = getDatasets()
+  if dsid:
+    # filter down to just the dataset we care about
+    datasets = [dataset for dataset in datasets if dataset['_id'] == dsid]
+  logging.info("Successfully retrieved %d datasets" % len(datasets))
+  
+  # holding spot accumulator for all files system-wide
+  files = []
+  # iterate across all datasets, one-by-one
+  for dataset in datasets:
+    # get files for this specific dataset
+    dsfiles = getFileList(dataset['_id'])
+    logging.info("Fetched %7d items in Dataset %s = %s" % (len(dsfiles), dataset['_id'], dataset['name']))
+    # create a unique URL and some other book keeping items for this file
+    for file in dsfiles:
+      # note these strings must match the CSV header capitalization and spelling to allow for an easy construction of the final row from a header field list
+      file['datasetid'] = dataset['_id']
+      file['datasetname'] = dataset['name']
+      file['owner'] = dataset['owner']
+      file['url'] = url + "/" + "#/datasets/" + dataset['_id'] + "/label?imageId=" + file['_id']
+    # append this into the master list for csv processing...
+    files.extend(dsfiles)
+  
+  return files
 
 # -------------------------------------
 # Parse and save file metadata
 #
-def saveMetadata(dsFiles, csvfilename, showall=False):
+def saveMetadata(dsid=None, url="http://ip/instance-name"):
+  
+  # get the list of affected files that we're potentially acting upon
+  # note that filters or other rules might mean that we may not actually touch ALL of these
+  dsFiles = enumeratefiles(dsid=args.dsid, url=args.url)
+  
   # save metadata through visual inspection's user-metadata API
+  logging.info("Beginning migration for %d files..." % len(dsFiles))
+  successcount = 0
   for dsFile in dsFiles:
     if "___" in dsFile['original_file_name']:
-      json = {}
+      filejson = {}
       visinspectdata = dsFile['original_file_name'].split('___')
 
-      # default keys common to both Object Detection and Image Classification      
+      # default keys common to both Object Detection and Image Classification
       keys = ['InspectionType', 'Timestamp', 'TriggerID', 'Reference', 'TriggerString', 'InspectionName', 'InspectionLocation', 'InspectionDevice']
       # add additional metadata keys based on the parsing of the original file name (INSPECTION vs TRAINING)
       if visinspectdata[0] == "INSPECTION":
@@ -196,9 +242,11 @@ def saveMetadata(dsFiles, csvfilename, showall=False):
         if "__" in data:
           listItem = data.split("__")
           visinspectdata[count] = listItem
-
+      logging.debug("visinspectdata split into an array of length %d" % len(visinspectdata))
       if visinspectdata[0] == "INSPECTION" and visinspectdata[9] == "ObjectDetection":
-        if visinspectdata[19] == "":
+        #this field may or may not exist depending on the version of the original app
+        #note that we check that the LENGTH is greater than 19 (ie there's at least a foo[19] in the zero-indexed array
+        if (len(visinspectdata) > 19) and (visinspectdata[19] == ""):
           # no failed labels were found; replace with an empty array
           visinspectdata[19] = []
         # reformat the list of bounding boxes
@@ -211,89 +259,127 @@ def saveMetadata(dsFiles, csvfilename, showall=False):
         visinspectdata[14] = bbBoxesList
 
       # merge the metadata keys and values to send as the json body
-      json = dict(zip(keys, visinspectdata))
-      postUserMetadata(dsFile['datasetid'], dsFile['_id'], json)
+      filejson = dict(zip(keys, visinspectdata))
+      logging.debug(filejson)
+      #TODO: re-save bounding boxes as inferred label type
+      logging.info("Migrating dataset %s, file %s" % (dsFile['datasetid'], dsFile['_id']))
+      success = postUserMetadata(dsFile['datasetid'], dsFile['_id'], filejson)
+      if success:
+        successcount += 1
+
+  logging.info("Migration complete. Migrated %d records" % (successcount))
+  if successcount != len(dsFiles):
+    logging.warning("We failed to migrate data for %d files." % (len(dsFiles) - successcount))
+  return successcount
+
+def getUserMetadata(dsId):
+  result = []
+  url = cfg["url"] + "/api/datasets/" + dsId + "/files/user-metadata" + "?" + "format=pipe"
+  # if newerthan > 0:
+  #   url += "&query=user_metadata.Timestamp%20%3E%20%2220200622113447%22"
+  logging.debug("getUserMetadata: URL = {}".format(url))
+  rsp = get(url)
+  if rspOk(rsp):
+    csvstring = rsp.content.decode('utf-8')
+    reader = csv.DictReader(csvstring.splitlines(), delimiter='|')
+    for row in reader:
+      result.append(row)
+  return result
 
 
-# -------------------------------------
-# Generate CSV from dictionary
-#
-def generateCSV(filename, rows, showall=False):
-  numrows = 0
-  # Generate minimal info CSV
-  with open(filename, 'w') as csvfile:
-    writer = csv.writer(csvfile)
-    headers = ['DataSetID', 'DataSetName', 'Owner', 'URL', 'InspectionType', 'FormattedDate', 'RawDate', 'TriggerID', 'Reference', 
-               'TriggerString', 'InspectionName', 'InspectionResult', 'InspectionLocation', 'InspectionDevice', 'InspectionModelType', 
-               'InspectionLabels', 'InspectionScores', 'InspectionThresholds', 'InspectionExpectedCounts',
-               'InspectionBoundingBoxes', 'InspectionAboveBelow', 'InspectionPassFail', 'InspectionAndOr', 'InspectionLevel', 'FailedLabels']
-    writer.writerow(headers)
 
-    logging.debug("Parsing data for dataset %s" % rows[0]['datasetid'])
-    for row in rows:
-      if "___" in row['original_file_name']:
-        visinspectdata = row['original_file_name'].split('___')
-        # prepend our URL to deep-link to Vision
-        visinspectdata[0:0] = [row['datasetid'], row['datasetname'], row['owner'], row['url']]
-        # reformat time to something excel can parse
-        try:
-          dt = datetime.strptime(visinspectdata[5], "%Y%m%d%H%M%S")
-          # insert the formatted date in BEFORE the old date
-          visinspectdata[5:5] = [dt.strftime("%Y-%m-%d %H:%M:%S")]
-        except ValueError:
-          visinspectdata[5:5] = [""]
-        if (not showall) and (visinspectdata[4] == "TRAINING"):
-          #skip this row since we're filtering out training data
-          continue
-        # remove the .jpeg appended by Inspector on the very end...
-        if '.jpeg' in visinspectdata:
-          visinspectdata.remove('.jpeg')
-        if '.png' in visinspectdata:
-          visinspectdata.remove('.png')
-        writer.writerow(visinspectdata)
-        numrows += 1
-      elif showall:
-        # handle cases where we found a user-uploaded image, but only if we're dumping all of the user's data
-        writer.writerow([row['url'], 'LABELED'])
-        numrows += 1
-  return numrows
-
-
-def dumpinspectordata(dsid=None, user="admin", passwd="passw0rd", url="http://ip/powerai-vision", output="out.csv", showall=False):
-  # set up the auth token
-  setupAPIAccess(url, user, passwd)
-
-  # get list of all dataset
+# return an array of files with extra data attached like the datasetid, URL, and owner that are not available via the API response directly
+def fetchCSV(dsid=None, url="http://ip/instance-name"):
+  # get list of all datasets
   logging.info("Retrieving global dataset list...")
   datasets = getDatasets()
   if dsid:
     # filter down to just the dataset we care about
     datasets = [dataset for dataset in datasets if dataset['_id'] == dsid]
   logging.info("Successfully retrieved %d datasets" % len(datasets))
-
+  
   # holding spot accumulator for all files system-wide
-  files = []
-  # iterate across all datasets, one-by-one
+  rows = []
+  #iterate across all datasets, one-by-one
   for dataset in datasets:
-    # get files for this specific dataset
-    dsfiles = getFileList(dataset['_id'])
-    logging.info("Fetched %7d items in Dataset %s = %s" % (len(dsfiles), dataset['_id'], dataset['name']))
+    #get files for this specific dataset
+    dscsvdata = getUserMetadata(dataset['_id'])
+    logging.info("Fetched %7d items in Dataset %s = %s" % (len(dscsvdata), dataset['_id'], dataset['name']))
     # create a unique URL and some other book keeping items for this file
-    for file in dsfiles:
-      file['datasetid'] = dataset['_id']
-      file['datasetname'] = dataset['name']
-      file['owner'] = dataset['owner']
-      file['url'] = url + "/" + "#/datasets/" + dataset['_id'] + "/label?imageId=" + file['_id']
+    for file in dscsvdata:
+      # note these strings must match the CSV header capitalization and spelling to allow for an easy construction of the final row from a header field list
+      file['DataSetID'] = dataset['_id']
+      file['DataSetName'] = dataset['name']
+      file['Owner'] = dataset['owner']
+      file['URL'] = url + "/" + "#/datasets/" + dataset['_id'] + "/label?imageId=" + file['#file_id']
     # append this into the master list for csv processing...
-    files.extend(dsfiles)
+    rows.extend(dscsvdata)
+  
+  return rows
 
-  # parse files and save user metadata to the file
-  json = saveMetadata(files, output, showall)
 
-  # output our CSV for additional parsing
-  rowswritten = generateCSV(output, files, showall)
-  logging.info("Wrote %d rows to %s. We filtered out %d items." % (rowswritten, output, len(files) - rowswritten))
+# -------------------------------------
+# Generate CSV from dictionary
+#
+def generateCSV(dsid=None, url="http://ip/instance-name", filename="output.csv", showall=False, newerthan=0):
+  numrows = 0
 
+  rows = fetchCSV(dsid=dsid, url=url)
+  
+  # Generate minimal info CSV
+  with open(filename, 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    headers = ['DataSetID', 'DataSetName', 'Owner', 'URL', 'InspectionType', 'FormattedDate', 'Timestamp', 'Reference',
+               'TriggerString', 'InspectionName', 'InspectionPassed',
+               'InspectionLocation', 'InspectionDevice', 'InspectionModelType', 'InspectionLabels', 'FailedLabels']
+    # headers.extend(['Metadata%d' % i for i in range(25)])
+    writer.writerow(headers)
+    # writer.writeheader()
+    logging.debug("Parsing data for dataset %s" % rows[0]['DataSetID'])
+    for row in rows:
+      #logging.debug("Parsing row = %s" % (row))
+      #note that we check to see if there's an InspectionType key, and THEN see if there's a valid VALUE. If so, then
+      #we parse this as an Inspector row.
+      if "InspectionType" in row.keys() and len(row["InspectionType"]) != 0:
+        # reformat time to something excel can parse
+        fmtedtime = ""
+        try:
+          dt = datetime.strptime(row['Timestamp'], "%Y%m%d%H%M%S")
+          fmtedtime = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+          fmtedtime = ""
+        row['FormattedDate'] = fmtedtime
+        if (not showall) and (row['InspectionType'] == "Collected"):
+          # NOTE Special behavior here. We skip this row since we're filtering out training data
+          continue
+        if int(row['Timestamp']) < newerthan:
+          # NOTE Special behavior here. We skip this row since we're filtering out all records older than the "newerthan" arg.
+          # If the user didn't specify newerthan, then we default to 0, which will return -all- timestamps.
+          continue
+      elif showall:
+        # handle cases where we found a user-uploaded image, but only if we're dumping all of the user's data
+        # mark this rown as having a type of "Labeled" but fill in no further columns
+        row['InspectionType'] = 'UNKNOWN'
+      else:
+        # if InspectionType is not present, OR we are not showing all records, we need to skip a record, so we "continue"
+        # to the next row, skipping the write operation.
+        continue
+      # actually write the row
+      visinspectdata = []
+      for header in headers:
+        # take what we can get
+        if header in row.keys():
+          visinspectdata.append(row[header])
+        else:
+          # append an empty column
+          visinspectdata.append('')
+      writer.writerow(visinspectdata)
+      numrows += 1
+      
+  if numrows != len(rows):
+    logging.info("We filtered out %d items." % (len(rows)-numrows))
+    
+  return numrows
 
 if __name__ == '__main__':
   args = getInputs()
@@ -303,6 +389,20 @@ if __name__ == '__main__':
                       level=loglevel)
   
   if args is not None:
-    dumpinspectordata(dsid=args.dsid, user=args.user, passwd=args.passwd, url=args.url, output=args.output, showall=args.showall)
+  
+    # set up the auth token
+    setupAPIAccess(url=args.url, user=args.user, passwd=args.passwd)
+
+    if args.migrate:
+      logging.debug("Starting migration of down-level inspector data to metadata APIs...")
+      numfilesmigrated = saveMetadata(dsid=args.dsid, url=args.url)
+      logging.info("Finished migrating data for %d files." % (numfilesmigrated))
+
+    elif args.output:
+      logging.debug("Saving CSV metadata to %s" % (args.output))
+      rowswritten = generateCSV(dsid=args.dsid, url=args.url, filename=args.output, showall=args.showall, newerthan=int(args.newerthan))
+      logging.info("Wrote   %7d rows to %s." % (rowswritten, args.output))
+    else:
+      logging.error("Did not find a valid command or argument to parse.")
   else:
     exit(1)
