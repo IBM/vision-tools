@@ -51,7 +51,7 @@ class DnnScripts:
         uri = "/dnn-scripts"
         return self.server.get(uri, params=kwargs)
 
-    def update(self, dnnid, **kwargs):
+    def update(self, dnnid, newname, description, inputfile, **kwargs):
         """ Change metadata of a dataset
 
         :param dnnid   -- UUID of the targeted DNN script
@@ -60,7 +60,9 @@ class DnnScripts:
                          information"""
 
         uri = f"/dnn-scripts/{dnnid}"
-        return self.server.put(uri, json=kwargs)
+        files = {'file': inputfile}
+        payload = {'name': newname, 'description': description}
+        return self.server.put(uri, files=files, data=payload)
 
     def delete(self, dnnid):
         """ Delete the indicated DNN script
