@@ -21,7 +21,6 @@
 import logging as logger
 import os
 import requests
-from requests.auth import HTTPDigestAuth
 
 
 class DnnScripts:
@@ -33,20 +32,15 @@ class DnnScripts:
         """ Create a new Dnn script.
 
         :param name   -- name for the new dnn script
+        :param inputfile   -- input zip file for custom asset
         :param kwargs -- optional fields for the creation payload. See
                         "POST /dnn-scripts" API documentation for details"""
 
         uri = "/dnn-scripts"
-        #f = open('/Users/bsmita123/goodCustomFile.zip', 'rb')
-        #file = {'files': open('/Users/bsmita123/goodCustomFile.zip', 'rb')}
-        #url = "https://aprilmin3.aus.stglabs.ibm.com/visual-insights/api/dnn-scripts"
-        #r = requests.post(url, auth=HTTPDigestAuth('admin', 'passw0rd'), files={"archive": ("test.zip", file)})
-        #body = {'name': name, 'files': open('/Users/bsmita123/goodCustomFile.zip', 'rb')}
-        #print(body)
-        #body.update(kwargs)
+        payload = {'name': name}
+        files = {'file': inputfile}
 
-        #return self.server.post(uri, json=body)
-        return self.server.post(uri, files = inputfile, data = {'name': name})
+        return self.server.post(uri, files=files, data=payload)
 
     def report(self, **kwargs):
         """ Get a list of all dnn scripts
