@@ -28,12 +28,11 @@ class DnnScripts:
     def __init__(self, server):
         self.server = server
 
-    def create(self, name, inputfile, **kwargs):
+    def create(self, name, inputfile):
         """ Create a new Dnn script.
 
         :param name   -- name for the new dnn script
         :param inputfile   -- input zip file for custom asset
-        :param kwargs -- optional fields for the creation payload. See
                         "POST /dnn-scripts" API documentation for details"""
 
         uri = "/dnn-scripts"
@@ -51,7 +50,7 @@ class DnnScripts:
         uri = "/dnn-scripts"
         return self.server.get(uri, params=kwargs)
 
-    def update(self, dnnid, newname, description, inputfile, **kwargs):
+    def update(self, dnnid, **kwargs):
         """ Change metadata of a dataset
 
         :param dnnid   -- UUID of the targeted DNN script
@@ -60,8 +59,15 @@ class DnnScripts:
                          information"""
 
         uri = f"/dnn-scripts/{dnnid}"
+        inputfile = kwargs["inputfile"]
+        description = kwargs["description"]
+        newname = kwargs["newname"]
         files = {'file': inputfile}
-        payload = {'name': newname, 'description': description}
+        payload = {}
+        if newname != "":
+            payload["name"] =  newname
+        if description != "":
+            payload["description"] =  description
         return self.server.put(uri, files=files, data=payload)
 
     def delete(self, dnnid):
