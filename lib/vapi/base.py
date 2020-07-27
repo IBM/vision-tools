@@ -34,6 +34,7 @@ from vapi.Objectlabels import ObjectLabels
 from vapi.ActionTags import ActionTags
 from vapi.ActionLabels import ActionLabels
 from vapi.Dltasks import DlTasks
+from vapi.DnnScripts import DnnScripts
 from vapi.TrainedModels import TrainedModels
 from vapi.DeployedModels import DeployedModels
 from vapi.InferenceResults import InferenceResults
@@ -83,6 +84,7 @@ class Base:
             self.dl_tasks = DlTasks(self.server)
             self.trained_models = TrainedModels(self.server)
             self.deployed_models = DeployedModels(self.server)
+            self.dnnscripts = DnnScripts(self.server)
             self.users = Users(self.server)
 
     def raw_http_request(self):
