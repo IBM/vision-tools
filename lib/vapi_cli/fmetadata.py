@@ -172,7 +172,6 @@ Where:
             'comma' (for CSV output) or 'pipe' (for unix style vertical bar 
             separated fields)
 
-
 Exports file user metadata from all files in a dataset in CSV format."""
 
 
