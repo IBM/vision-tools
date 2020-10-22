@@ -1,23 +1,24 @@
 # vision-tools
-## IBM Visual Insights API Tools
-IBM Visual Insights makes computer vision with deep learning more accessible to business users. IBM Visual Insights
+## Maximo Visual Inspection API Tools
+Maximo Visual Inspection (MVI) makes computer vision with deep learning more accessible to business users. MVI
 includes an intuitive toolset that empowers subject matter experts to label, train, and deploy deep learning vision
 models, without coding or deep learning expertise. This repo provides a developer client API and command line (CLI) for
-an existing installation. To learn more about IBM Visual Insights, check out the
-[IBM Marketplace](https://www.ibm.com/us-en/marketplace/ibm-powerai-vision)
+an existing installation. To learn more about Maximo Visual Inspection, check out the
+[IBM Marketplace](https://www.ibm.com/products/ibm-maximo-visual-inspection)
 
-The IBM Visual Insights API tools has two parts; a Python API piece and a command line (CLI) piece.
-The CLI piece uses the API piece to communicate with an IBM Visual Insights server. The CLI
-is meant to make it easier to do automation via shell scripts while the API is meant to make it easier to
+The MVI API tools has two parts; a Python library piece and a command line (CLI) piece.
+The CLI piece uses the library piece to communicate with an MVI server. The CLI
+is meant to make it easier to do automation via shell scripts while the library is meant to make it easier to
 do automation scripting in Python.
 
-The goal is that the tools will support all of the endpoints and options available from the IBM
-Visual Insight ReST API. However, not everything is supported at this time.
+The goal is that the tools will support all of the endpoints and options available from the Maximo Visual
+Inspection ReST API. However, not everything is supported at this time.
 
 ## Setup
 ### Setting up Access to the Tools
-It is a long term goal to create a PIP install image to make the tools easier to install and use.
-But at this time, the following steps can be used to setup and use the IBM Visual Insight Tools.
+A PIP install image is available via `pip install Vision-Tools`. 
+
+The following steps can be used to setup and use the the MVI Tools from a git repo.
 (these steps assume that the cloned repo is in your home directory ("`$HOME`"))
 
  1. Ensure Python is at version 3.6 or above (e.g. `python3 -V`). If it is not, upgrade python 
@@ -36,32 +37,34 @@ PATH=$PATH:$HOME/vision-tools/cli
 export PYTHONPATH=$PYTHONPATH:$HOME/vision-tools/lib
 ```
 
-At this point, the Visual Insights API CLI tools should be accessible. Run `vision --help` to see that the
+At this point, the MVI CLI tools should be accessible. Run `vision --help` to see that the
 command can be found. `vision datasets --help` can be run to ensure that sub-commands are accessible.
 
 ## Using the CLI Tool
 ### Introduction
-All of the CLI operations are driven by a single command -- `vision`. This command takes an "_entity_"
-(or "_object_") on which to operate. Currently supported entities are:
+All of the CLI operations are driven by a single command -- `vision`. This command takes an "_resource_"
+(or "_object_") on which to operate. Currently supported resources are:
 
  * datasets
- * categories
- * files
- * object-tags
- * object-labels
- * action-tags
- * action-labels
- * dltasks
+ * categories  -- classification categories within a dataset
+ * files  -- dataset files (images and/or videos)
+ * fkeys  -- file user metadata key names
+ * fmetadata  -- file user metadata objects
+ * object-tags  -- object detection tag names (some times called classes)
+ * object-labels  -- object detection annotation
+ * action-tags  -- action detection tag names
+ * action-labels  -- action detection annotation
+ * dltasks  -- model training tasks
  * trained-models
  * deployed-models
- * projects
+ * projects  -- project groups used to group related datasets and models
 
-Each of these entities have operations that can be performed on them for creating, listing, showing details,
-deleting, etc. Each entity will respond with the list of operations it supports when given the `--help` flag
+Each of these resources have operations that can be performed on them for creating, listing, showing details,
+deleting, etc. Each resource will respond with the list of operations it supports when given the `--help` flag
 (e.g. `vision datasets --help`). To get detailed help about an operation for an entity use `--help` with the
 operation (e.g. `vision datasets list --help`).
 
-Note that flags, entities, and operations can be abbreviated to the point of uniqueness. Using abbreviations is *NOT*
+Note that flags, resources, and operations can be abbreviated to the point of uniqueness. Using abbreviations is *NOT*
 recommended in scripts, but can be useful on the command line to reduce typing.
 
 ### The Basics
@@ -84,31 +87,28 @@ Usage:  vision [--httpdetail] [--jsonoutput] [--host=<host>] [--token=<token>] [
                     'error', 'warn', 'info', and 'debug'
 
      <entity> is required and must be one of:
-        categories     -- work with category entities
-        datasets       -- work with dataset entities
-        files          -- work with dataset file entities
-        object-tags    -- work with object detection tag entities
-        object-labels  -- work with object detection label entities (aka annotation entities)
+        categories     -- work with categories within a dataset
+        datasets       -- work with datasets
+        files          -- work with dataset files (images and/or videos)
+        fkeys          -- work with user file metadata keys
+        fmetadata      -- work with user file metadata key/value pairs
+        object-tags    -- work with object detection tags
+        object-labels  -- work with object detection labels (aka annotations)
         dltasks        -- work with DL training tasks
-        trained-models -- work with trained model entities
-        deployed-models -- work with deployed model entities
-        projects       -- work with project entities
+        trained-models -- work with trained models
+        deployed-models -- work with deployed models
+        projects       -- work with projects
         users          -- work with users
   
-  'vision' provides access to Visual Insights entities via the ReST API.
+  'vision' provides access to Maximo Visual Inspection resources via the ReST API.
   Use 'vision <entity> --help' for more information about operating on a given entity
 ```
 
-Two pieces of information are required -- the host name of the server (`--host`) and the user's authentication
-token (`--token`). It is often easier to specify this information via environment variables. The `$VAPI_HOST`
-variable is used for the hostname and the `$VAPI_TOKEN` variable is used for the token. With this information,
-`vision` will generate a base URL of `https://${VAPI_HOST}/visual-insights/api` to access the server.
+Two pieces of information are required -- the base URI of the server (`--uri`) and the user's API Key
+(`--token`). It is often easier to specify this information via environment variables. The `$VAPI_BASE_URI`
+variable is used for the hostname and the `$VAPI_TOKEN` variable is used for the token.
 
-In some installations, including those running IBM PowerAI Vision instead of IBM Visual Insights, 
-the `$VAPI_INSTANCE` environment variable will be needed to adjust the generated base URL. Exporting a value in
-`$VAPI_INSTANCE` will cause `vision` to generate a base URL of `https://${VAPI_HOST}/${VAPI_INSTANCE}/api`.
-
-If a different port is needed, that port can be included with the hostname.
+If a different port is needed, that port can be included with base URI.
 
 ### Quick Start Summary
 #### Using a Standalone Server with "visual-insights" URI
@@ -118,44 +118,39 @@ with a base URL of "`https://my-server.your-company.com/visual-insights`".<br>
 Assume that the user is `janedoe` and her password is `Vis10nDemo`.
 
 Perform the following steps for the easiest use:
- 1. set VAPI_HOST
+ 1. set VAPI_BASE_URI
  2. set VAPI_TOKEN
  3. ensure token is set
 
 Example commands...
 ```
-export VAPI_HOST=my-server.your-company.com
-export VAPI_TOKEN=`vision user token --user janedoe --password Vis10nDemo`
-echo $VAPI_TOKEN
+export VAPI_BASE_URI="https://my-server.your-company.com/api"
+export VAPI_TOKEN="API-KEY-FROM-UI"
 ```
 
-If all went well, `vision` should report results from the server; try `vision datasets list --summary`.
+`vision` should now report results from the server; try `vision datasets list --summary`.
 If something failed, see the "debugging" section below.
 
-#### Using a Server With Different URI (e.g. a Cloud Instance)
+### Backward Compatibility
+#### VAPI_HOST and VAPI_INSTANCE
+With version 8.0.0 of Maximo Visual Inspection, more complex URL's maybe required. This situation
+has pushed Vision Tools CLI to require a server base URI be provided as described above. To maintain backward
+compatibility with existing scripts, the old style used of VAPI_HOST and VAPI_INSTANCE are still supported
+to construct the base URI in the toolkit. However, this approach is deprecated and will be removed in a
+future release of the toolkit.
 
-Assume that the target server has a host name of `my-provider.cloud-service.com` and the URI to access
-the Visual Insights Application is `my-visual-insights-v120`.<br>
-Assume that the user is `janedoe` and her password is `Vis10nDemo`.
+#### User Tokens vs API Keys
+With version 8.0.0 of Maximo Visual Inspection, authentication is using an OIDC login flow to the
+common Maximo Application Suite Identity Provider. This flow currently requires browser interaction
+and does not support an API method of authentication. This situation means that an access token
+cannot be acquired like it used to be with the toolkit (e.g. `vision users token --user XXXX --pass 1234`).
 
-Perform the following steps for the easiest use:
- 1. set VAPI_HOST
- 2. set VAPI_INSTANCE
- 3. set VAPI_TOKEN
- 4. ensure token is set
-
-Example commands...
-```
-export VAPI_HOST=my-server.your-company.com
-export VAPI_INSTANCE=my-visual-insights-v120
-export VAPI_TOKEN=`vision user token --user janedoe --password Vis10nDemo`
-echo $VAPI_TOKEN
-```
-
-Note that the only difference is setting the `VAPI_INSTANCE` environment variable.
-
-If all went well, `vision` should report results from the server; try `vision datasets list --summary`.
-If something failed, see the "debugging" section below.
+To ease programmatic access to the ReST API, Maximo Visual Inspection as implemented an API key mechanism.
+This mechanism must be performed via the UI. The generated key can be copied and then pasted into the setting
+of the VAPI_TOKEN environment variable or passed via the `--token` parameter on the command line. To 
+minimize the impact of this change on existing scripts, the same flag and environment variable are being kept.
+Plus the new API key will not expire (though it can be revoked via the UI), so scripts will not have to
+re-authenticate daily.
 
 ### Debugging
 Two flags exist to assist with debugging. The `--httpdetail` flag and the `--log` flag.
