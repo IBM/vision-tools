@@ -29,6 +29,7 @@ from vapi.Files import Files
 from vapi.FileUserKeys import FileUserKeys
 from vapi.FileUserMetadata import FileUserMetadata
 from vapi.Categories import Categories
+from vapi.ConnectionDevices import ConnectionDevices
 from vapi.ObjectTags import ObjectTags
 from vapi.Objectlabels import ObjectLabels
 from vapi.ActionTags import ActionTags
