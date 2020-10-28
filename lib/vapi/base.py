@@ -77,6 +77,7 @@ class Base:
             self.file_keys = FileUserKeys(self.server)
             self.file_metadata = FileUserMetadata(self.server)
             self.categories = Categories(self.server)
+            self.connection_devices = ConnectionDevices(self.server)
             self.object_tags = ObjectTags(self.server)
             self.object_labels = ObjectLabels(self.server)
             self.action_tags = ActionTags(self.server)
