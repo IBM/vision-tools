@@ -29,15 +29,15 @@ class ConnectionDevices:
     def __init__(self, server):
         self.server = server
 
-    def create(self, jsonRequest):
-        """ Create a new Connection script.
+    def create(self, connectionInfo):
+        """ Create a new Connection device.
 
-        :param name   -- name for the new connection script
-                        "POST /connections/devices" API documentation for details"""
+        :param connectionInfo   -- payload for the new device connection
+                           "POST /connections/devices" API documentation for details"""
 
         uri = "/connections/devices"
 
-        response = self.server.post(uri, data=jsonRequest)
+        response = self.server.post(uri, data=connectionInfo)
         return response
 
     def report(self, **kwargs):
@@ -49,16 +49,16 @@ class ConnectionDevices:
         uri = "/connections/devices"
         return self.server.get(uri, params=kwargs)
 
-    def update(self, device_name, jsonRequest):
+    def update(self, device_name, connectionInfo):
         """ Change metadata of a connection
 
         :param devicename   -- Device name of the targeted device connection
-        :param jsonRequest -- Optional fields for the update payload. See the API
+        :param connectionInfo -- Optional fields for the update payload. See the API
                          documentation for "PUT /connections/devices/{device_name}" for more
                          information"""
 
         uri = f"/connections/devices/{device_name}"
-        rspData = self.server.put(uri, data=jsonRequest)
+        rspData = self.server.put(uri, data=connectionInfo)
 
         return rspData
 
