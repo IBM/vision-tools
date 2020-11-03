@@ -26,11 +26,9 @@ import logging as logger
 class Server(object):
     __version__ = "0.1"
 
-    def __init__(self, server_host, auth_token, instance="visual-insights", log_http_traffic=False):
+    def __init__(self, server_uri, auth_token, log_http_traffic=False):
         self.token = auth_token
-        self.host = server_host
-        self.instance = instance
-        self.baseurl = F"https://{self.host}/{instance}/api"
+        self.baseurl = server_uri
         self.last_rsp = None
         self.last_failure = None
         self.log_http_traffic = log_http_traffic
@@ -141,14 +139,14 @@ class Server(object):
         if fileDownload is False:
             url = self.baseurl + uri
         else:
-            url = f"https://{self.host}/{self.instance}/{uri}"
+            url = f"https://{self.baseurl}/{uri}"
 
         try:
             self.last_rsp = requests.get(url, verify=False, headers=headers, **kwargs)
             self.last_failure = None
         except requests.exceptions.ConnectionError as e:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
             logger.debug(e)
 
         jsonData = None
@@ -172,7 +170,7 @@ class Server(object):
             self.last_failure = None
         except requests.exceptions.ConnectionError as e:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
             logger.debug(e)
 
         self.__log_http_messages()
@@ -192,7 +190,7 @@ class Server(object):
             self.last_failure = None
         except requests.exceptions.ConnectionError:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
 
         self.__log_http_messages()
         jsonData = None
@@ -211,7 +209,7 @@ class Server(object):
             self.last_failure = None
         except requests.exceptions.ConnectionError:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
 
         self.__log_http_messages()
         jsonData = None
