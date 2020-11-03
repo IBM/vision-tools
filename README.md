@@ -6,7 +6,7 @@ models, without coding or deep learning expertise. This repo provides a develope
 an existing installation. To learn more about Maximo Visual Inspection, check out the
 [IBM Marketplace](https://www.ibm.com/products/ibm-maximo-visual-inspection)
 
-The MVI API tools has two parts; a Python library piece and a command line (CLI) piece.
+The MVI API tools consists of two parts; a Python library piece and a command line (CLI) piece.
 The CLI piece uses the library piece to communicate with an MVI server. The CLI
 is meant to make it easier to do automation via shell scripts while the library is meant to make it easier to
 do automation scripting in Python.
@@ -18,8 +18,9 @@ Inspection ReST API. However, not everything is supported at this time.
 ### Setting up Access to the Tools
 A PIP install image is available via `pip install Vision-Tools`. 
 
-The following steps can be used to setup and use the the MVI Tools from a git repo.
-(these steps assume that the cloned repo is in your home directory ("`$HOME`"))
+The following steps in this section can be used to setup and use the the MVI Tools from a git repo
+(these steps assume that the cloned repo is in your home directory ("`$HOME`")).
+The sections following this "_Setting up Access to the Tools"_ section are common to both installation methods.
 
  1. Ensure Python is at version 3.6 or above (e.g. `python3 -V`). If it is not, upgrade python 
  using your favorite install manager (pip, conda, etc.)
@@ -70,52 +71,59 @@ recommended in scripts, but can be useful on the command line to reduce typing.
 ### The Basics
 The `vision` tool has the following usage:
 ```
-Usage:  vision [--httpdetail] [--jsonoutput] [--host=<host>] [--token=<token>] [--log=<level>] [-?] <entity> [<args>...]
+Usage:  vision [--httpdetail] [--jsonoutput] [--host=<host> | --uri=<serverUri>] [--token=<token>] [--log=<level>] [-?] <resource> [<args>...]
 
- Where:
-     --httpdetail   Causes HTTP message details to be printed to STDERR
-                    This information can be useful for debugging purposes or
-                    to get the syntax for use with CURL.
-     --jsonoutput   Intended to ease use by scripts, all output to STDOUT is in
-                    JSON format. By default output to STDOUT is more human
-                    friendly
-     --host         Identifies the targeted PowerAI Vision server. If not
-                    specified here, the VAPI_HOST environment variable is used.
-     --token        The authentication token. If not specified here, the
-                    VAPI_TOKEN environment variable is used.
-     --log          Requests logging at the indicated level. Supported levels are
-                    'error', 'warn', 'info', and 'debug'
+Where:
+   --httpdetail   Causes HTTP message details to be printed to STDERR
+                  This information can be useful for debugging purposes or
+                  to get the syntax for use with CURL.
+   --jsonoutput   Intended to ease use by scripts, all output to STDOUT is in
+                  JSON format. By default output to STDOUT is more human
+                  friendly
+   --host         Identifies the targeted MVI server. If not
+                  specified here, the VAPI_HOST environment variable is used.
+                  This parameter has been deprecated. It is maintained for 
+                  backward compatibility, but will be removed in a future 
+                  release of the tools. 
+   --uri          Identifies the base URI for the MVI server -- including the
+                  '/api' "directory". If not specified, VAPI_BASE_URI
+                  environment variable will be used.
+   --token        The API Key token. If not specified here, the
+                  VAPI_TOKEN environment variable is used.
+   --log          Requests logging at the indicated level. Supported levels are
+                  'error', 'warn', 'info', and 'debug'
+   -?  displays this help message.
 
-     <entity> is required and must be one of:
-        categories     -- work with categories within a dataset
-        datasets       -- work with datasets
-        files          -- work with dataset files (images and/or videos)
-        fkeys          -- work with user file metadata keys
-        fmetadata      -- work with user file metadata key/value pairs
-        object-tags    -- work with object detection tags
-        object-labels  -- work with object detection labels (aka annotations)
-        dltasks        -- work with DL training tasks
-        trained-models -- work with trained models
-        deployed-models -- work with deployed models
-        projects       -- work with projects
-        users          -- work with users
-  
-  'vision' provides access to Maximo Visual Inspection resources via the ReST API.
-  Use 'vision <entity> --help' for more information about operating on a given entity
+   <resource> is required and must be one of:
+      categories     -- work with categories within a dataset
+      datasets       -- work with datasets
+      files          -- work with dataset files (images and/or videos)
+      fkeys          -- work with user file metadata keys
+      fmetadata      -- work with user file metadata key/value pairs
+      object-tags    -- work with object detection tags 
+      object-labels  -- work with object detection labels (aka annotations)
+      dltasks        -- work with DL training tasks
+      trained-models -- work with trained models
+      deployed-models -- work with deployed models
+      projects       -- work with projects
+      users          -- work with users
+
+'vision' provides access to Maximo Visual Inspection resources via the ReST API.
+Use 'vision <resource> --help' for more information about operating on a given resource
 ```
 
 Two pieces of information are required -- the base URI of the server (`--uri`) and the user's API Key
 (`--token`). It is often easier to specify this information via environment variables. The `$VAPI_BASE_URI`
-variable is used for the hostname and the `$VAPI_TOKEN` variable is used for the token.
+variable is used for the server URI and the `$VAPI_TOKEN` variable is used for the API Key.
 
-If a different port is needed, that port can be included with base URI.
+If a different port is needed, that port should be included with base URI.
 
 ### Quick Start Summary
 #### Using a Standalone Server with "visual-insights" URI
 
-Assume that the target server is an IBM Visual Insights standalone server with host name `my-server.your-company.com`,
-with a base URL of "`https://my-server.your-company.com/visual-insights`".<br>
-Assume that the user is `janedoe` and her password is `Vis10nDemo`.
+Assume that the target server is a Maximo Application Suite environment with MVI available at 
+`https://mvi-mas-my-server.your-company.com`. 
+Assume that the user has already created an API key via the MVI UI and the value is `API-KEY-FROM-UI`.
 
 Perform the following steps for the easiest use:
  1. set VAPI_BASE_URI
@@ -124,14 +132,14 @@ Perform the following steps for the easiest use:
 
 Example commands...
 ```
-export VAPI_BASE_URI="https://my-server.your-company.com/api"
+export VAPI_BASE_URI="https://mvi-mas-my-server.your-company.com/api"
 export VAPI_TOKEN="API-KEY-FROM-UI"
 ```
 
 `vision` should now report results from the server; try `vision datasets list --summary`.
 If something failed, see the "debugging" section below.
 
-### Backward Compatibility
+### Compatibility with Previous Versions of Maximo Visual Inspection
 #### VAPI_HOST and VAPI_INSTANCE
 With version 8.0.0 of Maximo Visual Inspection, more complex URL's maybe required. This situation
 has pushed Vision Tools CLI to require a server base URI be provided as described above. To maintain backward
