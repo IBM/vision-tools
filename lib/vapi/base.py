@@ -28,6 +28,7 @@ from vapi.Files import Files
 from vapi.FileUserKeys import FileUserKeys
 from vapi.FileUserMetadata import FileUserMetadata
 from vapi.Categories import Categories
+from vapi.ConnectionDevices import ConnectionDevices
 from vapi.ObjectTags import ObjectTags
 from vapi.Objectlabels import ObjectLabels
 from vapi.ActionTags import ActionTags
@@ -84,6 +85,7 @@ class Base:
             self.file_keys = FileUserKeys(self.server)
             self.file_metadata = FileUserMetadata(self.server)
             self.categories = Categories(self.server)
+            self.connection_devices = ConnectionDevices(self.server)
             self.object_tags = ObjectTags(self.server)
             self.object_labels = ObjectLabels(self.server)
             self.action_tags = ActionTags(self.server)
