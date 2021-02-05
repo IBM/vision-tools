@@ -174,16 +174,20 @@ def reportApiError(server, msg=None):
 
     try:
         #jsondata = textwrap.indent(json.dumps(server.json(), indent=2), " " * 8)
-        jsondata = json.dumps(server.json(), indent=2)
+        jsondata = server.json()
+        json_string = json.dumps(server.json(), indent=2)
     except:
-        jsondata = None
+        json_string = None
 
     if not json_only and msg is not None:
         print(msg, file=sys.stderr)
     if server.server.last_failure is not None:
         print(server.server.last_failure, file=sys.stderr)
-    if jsondata is not None and jsondata != "null":
-        print(jsondata, file=sys.stderr)
+    if json_string is not None and json_string != "null":
+        if "fault" in jsondata:
+            print(jsondata["fault"])
+            print()
+        print(json_string, file=sys.stderr)
 
     if show_httpdetail:
         print_http_detail(server)
