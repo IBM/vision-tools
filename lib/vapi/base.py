@@ -75,9 +75,11 @@ class Base:
         if not base_uri.endswith("/api"):
             base_uri += "/api"
 
+        language = os.getenv("VAPI_LANGUAGE", "en-US")
+
         logger.info(F"MVI: setting up server '{base_uri}'")
 
-        self.server = Server(base_uri, token, log_http_traffic)
+        self.server = Server(base_uri, token, log_http_traffic, language=language)
         if self.server is not None:
             self.projects = Projects(self.server)
             self.datasets = Datasets(self.server)
