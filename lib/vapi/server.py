@@ -26,9 +26,10 @@ import logging as logger
 class Server(object):
     __version__ = "0.1"
 
-    def __init__(self, server_uri, auth_token, log_http_traffic=False):
+    def __init__(self, server_uri, auth_token, log_http_traffic=False, language="en-US"):
         self.token = auth_token
         self.baseurl = server_uri
+        self.language = language
         self.last_rsp = None
         self.last_failure = None
         self.log_http_traffic = log_http_traffic
@@ -135,6 +136,7 @@ class Server(object):
     def get(self, uri, headers=None, fileDownload=False, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         if fileDownload is False:
             url = self.baseurl + uri
@@ -162,6 +164,7 @@ class Server(object):
     def post(self, uri, headers=None, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         url = self.baseurl + uri
 
@@ -182,6 +185,7 @@ class Server(object):
     def delete(self, uri, headers=None, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         url = self.baseurl + uri
 
@@ -201,6 +205,7 @@ class Server(object):
     def put(self, uri, headers=None, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         url = self.baseurl + uri
 
