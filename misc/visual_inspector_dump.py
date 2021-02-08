@@ -293,11 +293,7 @@ def getUserMetadata(dsId):
 
 
 # return an array of files with extra data attached like the datasetid, URL, and owner that are not available via the API response directly
-<<<<<<< HEAD
-def fetchCSV(dsid=None, url="http://ip/instance-name"):
-=======
 def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instance-name"):
->>>>>>> dev
   # get list of all datasets
   logging.info("Retrieving global dataset list...")
   datasets = getDatasets()
@@ -312,10 +308,7 @@ def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instanc
   for dataset in datasets:
     #get files for this specific dataset
     dscsvdata = getUserMetadata(dataset['_id'])
-<<<<<<< HEAD
-=======
     dsfiles = getFileList(dataset['_id'])
->>>>>>> dev
     logging.info("Fetched %7d items in Dataset %s = %s" % (len(dscsvdata), dataset['_id'], dataset['name']))
     # create a unique URL and some other book keeping items for this file
     for file in dscsvdata:
@@ -324,8 +317,6 @@ def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instanc
       file['DataSetName'] = dataset['name']
       file['Owner'] = dataset['owner']
       file['URL'] = url + "/" + "#/datasets/" + dataset['_id'] + "/label?imageId=" + file['#file_id']
-<<<<<<< HEAD
-=======
       # The 'FalseNegative' field is used to denote if a image has been 'tagged' that the
       # InspectionPassed is not correct after manual visual inspection has been done.
       # By default we set the value to 'False'  and only if either the image has the
@@ -336,7 +327,6 @@ def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instanc
         tagobject = [tagobject for tagobject in dsfile[0]['tag_list'] if tagobject['tag_name'] == objlabel]
       if dsfile[0].get('category_name', "") == categoryname or tagobject:
         file['FalseNegative'] = 'True'
->>>>>>> dev
     # append this into the master list for csv processing...
     rows.extend(dscsvdata)
   
@@ -346,29 +336,18 @@ def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instanc
 # -------------------------------------
 # Generate CSV from dictionary
 #
-<<<<<<< HEAD
-def generateCSV(dsid=None, url="http://ip/instance-name", filename="output.csv", showall=False, newerthan=0):
-  numrows = 0
-
-  rows = fetchCSV(dsid=dsid, url=url)
-=======
 def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instance-name", filename="output.csv", showall=False, newerthan=0):
   numrows = 0
 
   rows = fetchCSV(dsid=dsid, categoryname=categoryname, objlabel=objlabel, url=url)
->>>>>>> dev
   
   # Generate minimal info CSV
   with open(filename, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     headers = ['DataSetID', 'DataSetName', 'Owner', 'URL', 'InspectionType', 'FormattedDate', 'Timestamp', 'Reference',
                'TriggerString', 'InspectionName', 'InspectionPassed',
-<<<<<<< HEAD
-               'InspectionLocation', 'InspectionDevice', 'InspectionModelType', 'InspectionLabels', 'FailedLabels']
-=======
                'InspectionLocation', 'InspectionDevice', 'InspectionModelType', 'InspectionLabels', 'FailedLabels',
                'FalseNegative']
->>>>>>> dev
     # headers.extend(['Metadata%d' % i for i in range(25)])
     writer.writerow(headers)
     # writer.writeheader()
@@ -389,10 +368,6 @@ def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/inst
         if (not showall) and (row['InspectionType'] == "Collected"):
           # NOTE Special behavior here. We skip this row since we're filtering out training data
           continue
-<<<<<<< HEAD
-        if int(row['Timestamp']) < newerthan:
-          # NOTE Special behavior here. We skip this row since we're filtering out all records older than the "newerthan" arg.
-=======
         if (row['Timestamp'] is None):
           logging.debug("WARN: No timestamp for %s" % rows[0]['URL'])
           continue
@@ -403,7 +378,6 @@ def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/inst
           # NOTE Special behavior here. We skip this row since we're filtering out all records older than the "newerthan" arg.
           # However, if the 'FalseNegative' field is set to 'True' we want to include the item irregardless of
           # the Timestamp filter
->>>>>>> dev
           # If the user didn't specify newerthan, then we default to 0, which will return -all- timestamps.
           continue
       elif showall:
@@ -445,20 +419,12 @@ if __name__ == '__main__':
 
     if args.migrate:
       logging.debug("Starting migration of down-level inspector data to metadata APIs...")
-<<<<<<< HEAD
-      numfilesmigrated = saveMetadata(dsid=args.dsid, url=args.url)
-=======
       numfilesmigrated = saveMetadata(dsid=args.dsid, categoryname=args.categoryname, url=args.url)
->>>>>>> dev
       logging.info("Finished migrating data for %d files." % (numfilesmigrated))
 
     elif args.output:
       logging.debug("Saving CSV metadata to %s" % (args.output))
-<<<<<<< HEAD
-      rowswritten = generateCSV(dsid=args.dsid, url=args.url, filename=args.output, showall=args.showall, newerthan=int(args.newerthan))
-=======
       rowswritten = generateCSV(dsid=args.dsid, categoryname=args.categoryname, objlabel=args.objlabel, url=args.url, filename=args.output, showall=args.showall, newerthan=int(args.newerthan))
->>>>>>> dev
       logging.info("Wrote   %7d rows to %s." % (rowswritten, args.output))
     else:
       logging.error("Did not find a valid command or argument to parse.")

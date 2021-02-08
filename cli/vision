@@ -100,16 +100,9 @@ if __name__ == "__main__":
             resource = resource_map.get(args["<resource>"], None)
 
             try:
-<<<<<<< HEAD
-                pkg = importlib.import_module(f"vapi_cli.{entity}", package=None)
-                pkg.main(argv, cmd_flags=args)
-            except ModuleNotFoundError as err:
-                print(f"ERROR: Unknown entity -- {entity}", file=sys.stderr)
-=======
                 pkg = importlib.import_module(f"vapi_cli.{resource}", package=None)
                 pkg.main(argv, cmd_flags=args)
             except ModuleNotFoundError as err:
                 print(f"ERROR: Unknown resource -- {resource}", file=sys.stderr)
->>>>>>> dev
                 print(usage_stmt, file=sys.stderr)
                 raise err

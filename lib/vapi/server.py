@@ -141,11 +141,7 @@ class Server(object):
         if fileDownload is False:
             url = self.baseurl + uri
         else:
-<<<<<<< HEAD:lib/vapi/server.py
-            url = f"https://{self.host}/{self.instance}/{uri}"
-=======
             url = f"https://{self.baseurl}/{uri}"
->>>>>>> dev:lib/vapi/server.py
 
         try:
             self.last_rsp = requests.get(url, verify=False, headers=headers, **kwargs)
