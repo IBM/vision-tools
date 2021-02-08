@@ -23,30 +23,30 @@ import vapi_cli.cli_utils as cli_utils
 from vapi_cli.docopt import docopt
 
 usage_stmt = f"""
-Usage:  vision {cli_utils.common_cmd_flags} [-?] <entity> [<args>...]
+Usage:  vision {cli_utils.common_cmd_flags} [-?] <resource> [<args>...]
 
 Where:
 {cli_utils.common_cmd_flag_descriptions}
    -?  displays this help message.
 
-   <entity> is required and must be one of:
-      categories     -- work with category entities
-      datasets       -- work with dataset entities
-      files          -- work with dataset file entities
+   <resource> is required and must be one of:
+      categories     -- work with categories within a dataset
+      datasets       -- work with datasets
+      files          -- work with dataset files (images and/or videos)
       fkeys          -- work with user file metadata keys
       fmetadata      -- work with user file metadata key/value pairs
-      object-tags    -- work with object detection tag entities
-      object-labels  -- work with object detection label entities (aka annotation entities)
+      object-tags    -- work with object detection tags 
+      object-labels  -- work with object detection labels (aka annotations)
       dltasks        -- work with DL training tasks
-      trained-models -- work with trained model entities
-      deployed-models -- work with deployed model entities
-      projects       -- work with project entities
+      trained-models -- work with trained models
+      deployed-models -- work with deployed models
+      projects       -- work with projects
       users          -- work with users
 
-'vision' provides access to Visual Insights entities via the ReST API.
-Use 'vision <entity> --help' for more information about operating on a given entity"""
+'vision' provides access to Maximo Visual Inspection resources via the ReST API.
+Use 'vision <resource> --help' for more information about operating on a given resource"""
 
-entity_map = {
+resource_map = {
     "categories": "categories",
     "datasets": "datasets",
     "deployed-models": "deployed-models",
@@ -65,7 +65,7 @@ entity_map = {
 }
 
 if __name__ == "__main__":
-    # All of the PAIV CLI requires python 3.6 due to format string
+    # All of the MVI CLI requires python 3.6 due to format string
     # Make the check in a common location
     if sys.hexversion < 0x03060000:
         sys.exit("Python 3.6 or newer is required to run this program. You have {}.{}."
@@ -74,35 +74,42 @@ if __name__ == "__main__":
     args = docopt(usage_stmt, options_first=True)
     if args is not None:
         #print(f"@@@ args={args}", file=sys.stderr)
-        if args["<entity>"] in ["help", None]:
+        if args["<resource>"] in ["help", None]:
             print(usage_stmt, file=sys.stderr)
         else:
-            # argv = [args["<entity>"]] + args["<args>"]
+            # argv = [args["<resource>"]] + args["<args>"]
             argv = args["<args>"]
             if argv is None:
                 argv = ["--help"]
 
             # handle abbreviated entities
-            entity = args["<entity>"]
-            if args["<entity>"] not in entity_map:
-                matches = [entity_map[i] for i in entity_map.keys() if i.startswith(entity)]
+            resource = args["<resource>"]
+            if args["<resource>"] not in resource_map:
+                matches = [resource_map[i] for i in resource_map.keys() if i.startswith(resource)]
                 if len(matches) == 1:
-                    args["<entity>"] = matches[0]
+                    args["<resource>"] = matches[0]
                 else:
                     # Generate correct error message and exit (with usage statement)
                     if len(matches) > 1:
-                        print(f"ERROR: entity '{entity}' not unique; matches={matches}")
+                        print(f"ERROR: resource '{resource}' not unique; matches={matches}")
                     else:
-                        print(f"ERROR: Unknown entity -- {entity}", file=sys.stderr)
+                        print(f"ERROR: Unknown resource -- {resource}", file=sys.stderr)
                     print(usage_stmt, file=sys.stderr)
                     exit(1)
 
-            entity = entity_map.get(args["<entity>"], None)
+            resource = resource_map.get(args["<resource>"], None)
 
             try:
+<<<<<<< HEAD
                 pkg = importlib.import_module(f"vapi_cli.{entity}", package=None)
                 pkg.main(argv, cmd_flags=args)
             except ModuleNotFoundError as err:
                 print(f"ERROR: Unknown entity -- {entity}", file=sys.stderr)
+=======
+                pkg = importlib.import_module(f"vapi_cli.{resource}", package=None)
+                pkg.main(argv, cmd_flags=args)
+            except ModuleNotFoundError as err:
+                print(f"ERROR: Unknown resource -- {resource}", file=sys.stderr)
+>>>>>>> dev
                 print(usage_stmt, file=sys.stderr)
                 raise err

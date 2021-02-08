@@ -6,10 +6,10 @@ with open("pipDescription.md", "r") as fh:
 
 setup(
     name="Vision Tools",
-    version="0.1.0-dev",
+    version="0.2.0",
     author="Carl Bender",
     author_email="bcarl@us.ibm.com",
-    description="Tools to interface with an IBM Visual Insights server's ReST API.",
+    description="Tools to interface with an IBM Visual Inspection server's ReST API.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ibm/vision-tools",

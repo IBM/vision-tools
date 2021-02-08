@@ -28,23 +28,29 @@ from types import SimpleNamespace
 from vapi_cli.docopt import docopt
 import logging as logger
 
-# All of the Vision Tools requires python 3.6 due to format string
+# All of the Vision Tools require python 3.6 due to format string
 # Make the check in a common location
 if sys.hexversion < 0x03060000:
     sys.exit("Python 3.6 or newer is required to run this program.")
 
 
 # Common flag strings
-common_cmd_flags = "[--httpdetail] [--jsonoutput] [--host=<host>] [--token=<token>] [--log=<level>]"
+common_cmd_flags = "[--httpdetail] [--jsonoutput] [--host=<host> | --uri=<serverUri>] [--token=<token>] [--log=<level>]"
 common_cmd_flag_descriptions = """   --httpdetail   Causes HTTP message details to be printed to STDERR
                   This information can be useful for debugging purposes or
                   to get the syntax for use with CURL.
    --jsonoutput   Intended to ease use by scripts, all output to STDOUT is in
                   JSON format. By default output to STDOUT is more human
                   friendly
-   --host         Identifies the targeted PowerAI Vision server. If not
+   --host         Identifies the targeted MVI server. If not
                   specified here, the VAPI_HOST environment variable is used.
-   --token        The authentication token. If not specified here, the
+                  This parameter has been deprecated. It is maintained for 
+                  backward compatibility, but will be removed in a future 
+                  release of the tools. 
+   --uri          Identifies the base URI for the MVI server -- including the
+                  '/api' "directory". If not specified, VAPI_BASE_URI
+                  environment variable will be used.
+   --token        The API Key token. If not specified here, the
                   VAPI_TOKEN environment variable is used.
    --log          Requests logging at the indicated level. Supported levels are
                   'error', 'warn', 'info', and 'debug'"""
@@ -99,6 +105,7 @@ def get_valid_input(usage, operation_map, id=None, argv=None, cmd_flags=None):
     #print(f"@@@ cmd_results={cmd_results}", file=sys.stderr)
 
     host_name = cmd_results["--host"] if "--host" in cmd_results else None
+    base_uri = cmd_results["--uri"] if "--uri" in cmd_results else None
     token = cmd_results["--token"] if "--token" in cmd_results else None
 
     if operation_map is not None:
@@ -138,12 +145,13 @@ def get_valid_input(usage, operation_map, id=None, argv=None, cmd_flags=None):
 
             # Ensure required parameters are present in either input or env vars
             # NOTE: we cannot validate VAPI_TOKEN here because user may be requesting a token.
-            try:
-                if host_name is None:
-                    x = os.environ["VAPI_HOST"]
-            except Exception:
-                print("ERROR: Missing 'HOST' information.", file=sys.stderr)
-                print("       Either use '--host' flag or export 'VAPI_HOST' environment variable.\n",
+            if base_uri is None:
+                base_uri = os.getenv("VAPI_BASE_URI")
+            if host_name is None:
+                host_name = os.getenv("VAPI_HOST")
+            if base_uri is None and host_name is None:
+                print("ERROR: Missing 'Base URI' information.", file=sys.stderr)
+                print("       Either use '--uri' flag or export 'VAPI_BASE_URI' environment variable.\n",
                       file=sys.stderr)
                 print(usage["usage"], file=sys.stderr)
                 results = None
@@ -164,21 +172,22 @@ def reportApiError(server, msg=None):
     This method also uses global variables 'scripting' and 'show_httpdetail' to control what output
     is generated."""
 
-    httpstatus = server.status_code()
-    httpreq = server.http_request_str()
-
     try:
         #jsondata = textwrap.indent(json.dumps(server.json(), indent=2), " " * 8)
-        jsondata = json.dumps(server.json(), indent=2)
+        jsondata = server.json()
+        json_string = json.dumps(server.json(), indent=2)
     except:
-        jsondata = None
+        json_string = None
 
     if not json_only and msg is not None:
         print(msg, file=sys.stderr)
     if server.server.last_failure is not None:
         print(server.server.last_failure, file=sys.stderr)
-    if jsondata is not None and jsondata != "null":
-        print(jsondata, file=sys.stderr)
+    if json_string is not None and json_string != "null":
+        if "fault" in jsondata:
+            print(jsondata["fault"])
+            print()
+        print(json_string, file=sys.stderr)
 
     if show_httpdetail:
         print_http_detail(server)
@@ -256,7 +265,7 @@ def set_output_controls(params):
         if log.lower() == "error":
             log_level = logger.ERROR
         elif log.lower().startswith("warn"):
-            log_level - logger.WARNING
+            log_level = logger.WARNING
         elif log.lower() == "info":
             log_level = logger.INFO
         elif log.lower() == "debug":

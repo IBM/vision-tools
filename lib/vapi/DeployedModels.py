@@ -31,7 +31,6 @@ class DeployedModels:
         :param kwargs -- optional fields for the creation payload. See
                         "POST /datasets" API documentation for details"""
 
-        # TODO: figure out how to get to other objects in my package
         model = self.server.get(f"/trained-models/{modelid}")
         if model is None:
             return None
@@ -53,7 +52,6 @@ class DeployedModels:
 
         uri = "/webapis/"
         return self.server.get(uri, params=kwargs)
-
 
     def delete(self, model_id):
         """ Undeploy the indicated model

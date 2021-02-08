@@ -20,6 +20,7 @@
 
 import logging as logger
 import sys
+import cv2 as cv
 import vapi
 import vapi_cli.cli_utils as cli_utils
 from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
@@ -121,6 +122,8 @@ Usage:
                         [--rle=<true_or_false>]  [--polygons=<true_or_false>]
                         [--maxclasses=<integer>] [--caption=<true_or_false>]
                         [--wait=<true_or_false>] [--annotatefile=<output_file_path>]
+                        [--markwidth=<integer>]  [--fontscale=<number>]
+                        [--color=<annotation-mark-color>]
                         <path-to-file>
 
 Where:
@@ -155,6 +158,18 @@ Where:
              be stored. If not supplied, annotated images will not be generated.
              This flag only applies to object detection models.
              At this time, only bounding box annotations are done.
+  --markwidth  Optional flag that is only relevant if the '--annotatefile' flag has been 
+             specified. This flag specifies the width of the annotation marks (in pixels)
+             drawn on the annotated image. Values can range from 1 to 8.
+             The default is 4.
+  --fontscale  Optional flag that is only relevant if the '--annotatefile' flag has been
+             specified. This flag specifies the font scale. Values can range from 0.5 to 4.0.
+             The default is 2.0
+  --color    Optional flag that is only relevant if the '--annotatefile' flag has been 
+             specified. This flag specifies the color to use for the annotation marks
+             drawn on the annotated image. Possible values are 'red', 'blue', 'green',
+             'yellow', 'magenta', 'cyan', and 'brightgreen'.
+             The default is red.
   <path-to-file>     Required parameter to identify the path to the file on which inference
              is to be performed.
 
@@ -184,7 +199,109 @@ def infer(params):
     if rsp is None:
         reportApiError(server, f"Failure inferring to model id '{modelid}'")
     else:
+        if annotateFile is not None:
+            drawAnnotationsOnFile(params, filepath, server.json(), annotateFile)
         reportSuccess(server)
+
+
+markInfo = {}
+
+
+def drawAnnotationsOnFile(params, originalFile, inferResults, outputFile):
+
+    detections = inferResults.get("classified", [])
+    if len(detections) > 0 and "xmin" in detections[0]:
+        determineMarkInfo(params)
+        image = cv.imread(originalFile)
+
+        for detection in detections:
+            drawBoundingBox(image, detection["label"], detection["confidence"],
+                            detection["xmin"], detection["ymin"],
+                            detection["xmax"], detection["ymax"])
+        # Save the modified image
+        cv.imwrite(outputFile, image)
+
+
+def determineMarkInfo(params):
+    # Color definitions for annotation marks
+    CV_RED = (0, 0, 255)
+    CV_GREEN = (0, 255, 0)
+    CV_BLUE = (255, 0, 0)
+    CV_MAGENTA = (255, 0, 255)
+    CV_YELLOW = (0, 255, 255)
+    CV_CYAN = (255, 255, 0)
+    CV_BRIGHTGREEN = (0, 255, 127)
+    CV_GOLD = (0, 215, 255)
+    CV_WHITE = (255, 255, 255)
+    CV_BLACK = (0, 0, 0)
+
+    global markInfo
+
+    width = params.get("--markwidth")
+    if width is None:
+        width = 4
+    else:
+        width = int(width)
+        if width < 1:
+            width = 1
+        if width > 8:
+            width = 8
+
+    fscale = params.get("--fontscale")
+    if fscale is None:
+        fscale = 2
+    else:
+        fscale = float(fscale)
+        if fscale < 0.5:
+            fscale = 0.5
+        if fscale > 4.0:
+            fscale = 4.0
+
+    incolor = params.get("--color", "red").lower()
+    if incolor == "green":
+        color = CV_GREEN
+    elif incolor == "blue":
+        color = CV_BLUE
+    elif incolor == "magenta":
+        color = CV_MAGENTA
+    elif incolor == "yellow":
+        color = CV_YELLOW
+    elif incolor == "cyan":
+        color = CV_CYAN
+    elif incolor == "white":
+        color = CV_WHITE
+    elif incolor == "black":
+        color = CV_BLACK
+    else:
+        color = CV_RED
+
+    markInfo = {
+        "width": width,
+        "fscale": fscale,
+        "color": color
+    }
+
+
+def drawBoundingBox(image, name, confidence, xmin, ymin, xmax, ymax):
+    width = markInfo["width"]
+    fontscale = markInfo["fscale"]
+    color = markInfo["color"]
+    print(f"width={width}, fscale={fontscale}, color={color}")
+
+    # construct the rectangle
+    cv.rectangle(image, (xmin, ymin), (xmax, ymax), color, width)
+
+    # construct the label contents (if the pieces are present)
+    if name is not None:
+        if confidence is not None:
+            label = "{}: {:.2f}%".format(name, confidence * 100)
+        else:
+            label = "{}".format(name)
+        if ymin - 15 > 15:
+            y = ymin - 15
+        else:
+            y = ymin + 15
+        cv.putText(image, label, (xmin, y), cv.FONT_HERSHEY_SIMPLEX, fontscale, color, width)
 
 
 cmd_usage = f"""
