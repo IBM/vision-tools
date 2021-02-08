@@ -32,13 +32,14 @@ if sys.hexversion < 0x03060000:
 token_usage = """
 Usage:
   users token --user=<user-name> --password=<password>
-  
+
 Where:
   --user   Required parameter containing the user login name
   --password  Required parameter containing the user's password
-  
+
 Gets an authentication token for the given user"""
 
+server = None
 
 # ---  Token Operation  ----------------------------------------------
 def token(params):

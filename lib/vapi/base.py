@@ -20,7 +20,6 @@
 
 import os
 import logging as logger
-import sys
 
 from vapi.server import Server
 from vapi.projects import Projects
@@ -29,6 +28,7 @@ from vapi.Files import Files
 from vapi.FileUserKeys import FileUserKeys
 from vapi.FileUserMetadata import FileUserMetadata
 from vapi.Categories import Categories
+from vapi.ConnectionDevices import ConnectionDevices
 from vapi.ObjectTags import ObjectTags
 from vapi.Objectlabels import ObjectLabels
 from vapi.ActionTags import ActionTags
@@ -43,32 +43,43 @@ from vapi.Users import Users
 
 class Base:
 
-    def __init__(self, host=None, token=None, instance=None, log_http_traffic=False):
+    def __init__(self, host=None, token=None, instance=None, log_http_traffic=False, base_uri=None):
         # Get required parameters from ENV if not provided on input
-        env_var = ""
-        try:
-            env_var = "VAPI_HOST"
-            if host is None:
-                host = os.environ[env_var]
-            env_var = "VAPI_TOKEN"
+        if base_uri is None:
+            base_uri = os.getenv("VAPI_BASE_URI")
+        if host is None:
+            host = os.getenv("VAPI_HOST")
+        if base_uri is None and host is None:
+            msg = F"Could not find 'VAPI_BASE_URI' information in environment or input parameters"
+            logger.error(" MVI:" + msg)
+            raise Exception(msg)
+
+        if token is None:
+            token = os.getenv("VAPI_TOKEN")
             if token is None:
-                token = os.environ[env_var]
-        except KeyError:
-            msg = F"Could not find '{env_var}' information in environment or input parameters"
-            logger.error(" PAIV:" + msg)
-            raise
+                msg = F"Could not find 'VAPI_TOKEN' information in environment or input parameters"
+                logger.error(" MVI:" + msg)
+                raise Exception(msg)
 
-        # Get optional parameters from ENV if not provided -- fallback to defaults if not present in ENV
-        env_var = "VAPI_INSTANCE"
-        if instance is None:
-            if env_var in os.environ:
-                instance = os.environ[env_var]
-            else:
-                instance = "visual-insights"
+        if base_uri is None:
+            # Try to construct the base_uri from VAPI_HOST and VAPI_INSTANCE
+            if instance is None:
+                instance = os.getenv('VAPI_INSTANCE')
+                if instance is None:
+                    instance = ""
+            base_uri = f"https://{host}/{instance}"
 
-        logger.info(F"PAIV: setting up server with host={host}, instance={instance}")
+        # Strip trailing slash from URI if present and make sure it ends with "/api"
+        if base_uri.endswith("/"):
+            base_uri = base_uri[:-1]
+        if not base_uri.endswith("/api"):
+            base_uri += "/api"
 
-        self.server = Server(host, token, instance, log_http_traffic)
+        language = os.getenv("VAPI_LANGUAGE", "en-US")
+
+        logger.info(F"MVI: setting up server '{base_uri}'")
+
+        self.server = Server(base_uri, token, log_http_traffic, language=language)
         if self.server is not None:
             self.projects = Projects(self.server)
             self.datasets = Datasets(self.server)
@@ -76,6 +87,7 @@ class Base:
             self.file_keys = FileUserKeys(self.server)
             self.file_metadata = FileUserMetadata(self.server)
             self.categories = Categories(self.server)
+            self.connection_devices = ConnectionDevices(self.server)
             self.object_tags = ObjectTags(self.server)
             self.object_labels = ObjectLabels(self.server)
             self.action_tags = ActionTags(self.server)

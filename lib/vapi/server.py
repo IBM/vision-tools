@@ -26,11 +26,10 @@ import logging as logger
 class Server(object):
     __version__ = "0.1"
 
-    def __init__(self, server_host, auth_token, instance="visual-insights", log_http_traffic=False):
+    def __init__(self, server_uri, auth_token, log_http_traffic=False, language="en-US"):
         self.token = auth_token
-        self.host = server_host
-        self.instance = instance
-        self.baseurl = F"https://{self.host}/{instance}/api"
+        self.baseurl = server_uri
+        self.language = language
         self.last_rsp = None
         self.last_failure = None
         self.log_http_traffic = log_http_traffic
@@ -137,18 +136,19 @@ class Server(object):
     def get(self, uri, headers=None, fileDownload=False, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         if fileDownload is False:
             url = self.baseurl + uri
         else:
-            url = f"https://{self.host}/{self.instance}/{uri}"
+            url = f"https://{self.baseurl}/{uri}"
 
         try:
             self.last_rsp = requests.get(url, verify=False, headers=headers, **kwargs)
             self.last_failure = None
         except requests.exceptions.ConnectionError as e:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
             logger.debug(e)
 
         jsonData = None
@@ -164,6 +164,7 @@ class Server(object):
     def post(self, uri, headers=None, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         url = self.baseurl + uri
 
@@ -172,7 +173,7 @@ class Server(object):
             self.last_failure = None
         except requests.exceptions.ConnectionError as e:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
             logger.debug(e)
 
         self.__log_http_messages()
@@ -184,6 +185,7 @@ class Server(object):
     def delete(self, uri, headers=None, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         url = self.baseurl + uri
 
@@ -192,7 +194,7 @@ class Server(object):
             self.last_failure = None
         except requests.exceptions.ConnectionError:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
 
         self.__log_http_messages()
         jsonData = None
@@ -203,6 +205,7 @@ class Server(object):
     def put(self, uri, headers=None, **kwargs):
         if headers is None:
             headers = {}
+        headers['accept-language'] = self.language
         headers['X-Auth-Token'] = u'%s' % self.token
         url = self.baseurl + uri
 
@@ -211,7 +214,7 @@ class Server(object):
             self.last_failure = None
         except requests.exceptions.ConnectionError:
             self.last_rsp = None
-            self.last_failure = f"Could not connect to server ({self.host})."
+            self.last_failure = f"Could not connect to server ({self.baseurl})."
 
         self.__log_http_messages()
         jsonData = None

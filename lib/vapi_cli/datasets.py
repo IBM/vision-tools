@@ -45,7 +45,7 @@ Creates a new dataset with the given name."""
 
 
 def create(params):
-    """Handles the 'change' operation for modifying a dataset.
+    """Handles the 'create' operation to create a dataset.
 
     Expected flags in 'params' are translated to Json Field names for creation content
     """
