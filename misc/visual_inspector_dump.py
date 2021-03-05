@@ -30,6 +30,7 @@ import requests
 
 cfg = {}
 csvResult = {}
+fnset = set()
 
 
 # ------------------------------------
@@ -104,14 +105,24 @@ def setupAPIAccess(url, user, passwd):
 #
 # argparse "results" class is returned
 #
+# Note: If '--category' or '--objlabel' arguments are specified, the script will look for false negatives.
+# A false negative image is one that is either that has a category value that matches the "--category" value
+# OR if the image has an object tag that matches the "--objlabel" value.  If either of these command line
+# arguments is specified, the output csv file will only contain those images that were deemed to be
+# a false negative.
+#
+# Without the use of either "--category" or "--objlabel", the script will not try to determine if
+# an image is a false negative.  With a 60K image dataset, the script completed in about 30 seconds.
+# If either "--category" or "--objlabel" is specified, the script will look for false negatives,
+# causing the script to run longer.  With a 60K image dataset, the script completed in about 60 seconds.
 def getInputs():
   parser = argparse.ArgumentParser(description="Tool to classify all images in a directory")
   parser.add_argument('--dsid', action="store", dest="dsid", required=False,
                       help="(Optional) UUID of a target dataset")
   parser.add_argument('--category', action="store", dest="categoryname", required=False,
-                      help="(Optional) Name of the category")
+                      help="(Optional) Name of the category to determine if image is a false negative.  If specified, output csv file will only contain false negative image entries.")
   parser.add_argument('--objlabel', action="store", dest="objlabel", required=False,
-                      help="(Optional) Name of the object label")
+                      help="(Optional) Name of the object label to determine if image is a false negative.  If specified, output csv file will only contain false negative image entries.")
   parser.add_argument('--url', action="store", dest="url", required=True,
                       help="Vision URL eg https://ip/powerai-vision WITHOUT trailing slash or /api")
   parser.add_argument('--user', action="store", dest="user", required=True,
@@ -199,9 +210,9 @@ def enumeratefiles(dsid=None, url="http://ip/instance-name"):
     # create a unique URL and some other book keeping items for this file
     for file in dsfiles:
       # note these strings must match the CSV header capitalization and spelling to allow for an easy construction of the final row from a header field list
-      file['datasetid'] = dataset['_id']
-      file['datasetname'] = dataset['name']
-      file['owner'] = dataset['owner']
+      file['datasetid'] = dataset.get('_id', "")
+      file['datasetname'] = dataset.get('name', "")
+      file['owner'] = dataset.get('owner', "")
       file['url'] = url + "/" + "#/datasets/" + dataset['_id'] + "/label?imageId=" + file['_id']
     # append this into the master list for csv processing...
     files.extend(dsfiles)
@@ -290,12 +301,30 @@ def getUserMetadata(dsId):
       result.append(row)
   return result
 
-
+def getFalseNegativeSet(dsid=None, categoryname=None, objlabel=None):
+  global fnset
+  #falseset = set()
+  if categoryname or objlabel:
+    dsfiles = getFileList(dsid)
+    for dsfile in dsfiles:
+      if dsfile.get('category_name', "") == categoryname:
+        #logging.debug("Added %s based on category" % (dsfile['_id']))
+        #falseset.add(dsfile['_id'])
+        fnset.add(dsfile['_id'])
+      else:
+        if objlabel and 'tag_list' in dsfile.keys():
+          tagobject = [tagobject for tagobject in dsfile['tag_list'] if tagobject['tag_name'] == objlabel]
+          if tagobject:
+            #falseset.add(dsfile['_id'])
+            fnset.add(dsfile['_id'])
+  logging.debug("Size of falseset is %d" % len(fnset))
+  return
 
 # return an array of files with extra data attached like the datasetid, URL, and owner that are not available via the API response directly
 def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instance-name"):
   # get list of all datasets
   logging.info("Retrieving global dataset list...")
+  global fnset
   datasets = getDatasets()
   if dsid:
     # filter down to just the dataset we care about
@@ -308,26 +337,24 @@ def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instanc
   for dataset in datasets:
     #get files for this specific dataset
     dscsvdata = getUserMetadata(dataset['_id'])
-    dsfiles = getFileList(dataset['_id'])
+    getFalseNegativeSet(dataset['_id'], categoryname, objlabel)
     logging.info("Fetched %7d items in Dataset %s = %s" % (len(dscsvdata), dataset['_id'], dataset['name']))
     # create a unique URL and some other book keeping items for this file
     for file in dscsvdata:
       # note these strings must match the CSV header capitalization and spelling to allow for an easy construction of the final row from a header field list
-      file['DataSetID'] = dataset['_id']
-      file['DataSetName'] = dataset['name']
-      file['Owner'] = dataset['owner']
+      file['DataSetID'] = dataset.get('_id', "")
+      file['DataSetName'] = dataset.get('name', "")
+      file['Owner'] = dataset.get('owner', "")
       file['URL'] = url + "/" + "#/datasets/" + dataset['_id'] + "/label?imageId=" + file['#file_id']
       # The 'FalseNegative' field is used to denote if a image has been 'tagged' that the
       # InspectionPassed is not correct after manual visual inspection has been done.
       # By default we set the value to 'False'  and only if either the image has the
       # 'category_name' or an object label of objlabel, set it to 'True'
-      file['FalseNegative'] = 'False'
-      dsfile = [dsfile for dsfile in dsfiles if dsfile['_id'] == file['#file_id']]
-      if 'tag_list' in dsfile[0].keys():
-        tagobject = [tagobject for tagobject in dsfile[0]['tag_list'] if tagobject['tag_name'] == objlabel]
-      if dsfile[0].get('category_name', "") == categoryname or tagobject:
-        file['FalseNegative'] = 'True'
-    # append this into the master list for csv processing...
+      #if file['#file_id'] in falseset:
+      if file['#file_id'] in fnset:
+        #logging.info("setting InspectionPassed to TRUE on %s" % (file['#file_id']))
+        file['InspectionPassed'] = 'true'
+  # append this into the master list for csv processing...
     rows.extend(dscsvdata)
   
   return rows
@@ -338,6 +365,7 @@ def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instanc
 #
 def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instance-name", filename="output.csv", showall=False, newerthan=0):
   numrows = 0
+  global fnset
 
   rows = fetchCSV(dsid=dsid, categoryname=categoryname, objlabel=objlabel, url=url)
   
@@ -346,8 +374,7 @@ def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/inst
     writer = csv.writer(csvfile)
     headers = ['DataSetID', 'DataSetName', 'Owner', 'URL', 'InspectionType', 'FormattedDate', 'Timestamp', 'Reference',
                'TriggerString', 'InspectionName', 'InspectionPassed',
-               'InspectionLocation', 'InspectionDevice', 'InspectionModelType', 'InspectionLabels', 'FailedLabels',
-               'FalseNegative']
+               'InspectionLocation', 'InspectionDevice', 'InspectionModelType', 'InspectionLabels', 'FailedLabels']
     # headers.extend(['Metadata%d' % i for i in range(25)])
     writer.writerow(headers)
     # writer.writeheader()
@@ -356,6 +383,9 @@ def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/inst
       #logging.debug("Parsing row = %s" % (row))
       #note that we check to see if there's an InspectionType key, and THEN see if there's a valid VALUE. If so, then
       #we parse this as an Inspector row.
+      if categoryname or objlabel:
+        if "#file_id" in row.keys() and row['#file_id'] not in fnset:
+          continue
       if "InspectionType" in row.keys() and len(row["InspectionType"]) != 0:
         # reformat time to something excel can parse
         fmtedtime = ""
@@ -374,7 +404,7 @@ def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/inst
         if (row['Timestamp'].strip() == ""):
           logging.debug("WARN: No timestamp for %s" % rows[0]['URL'])
           continue
-        if int(row['Timestamp']) < newerthan and row['FalseNegative'] == 'False':
+        if int(row['Timestamp']) < newerthan:
           # NOTE Special behavior here. We skip this row since we're filtering out all records older than the "newerthan" arg.
           # However, if the 'FalseNegative' field is set to 'True' we want to include the item irregardless of
           # the Timestamp filter
