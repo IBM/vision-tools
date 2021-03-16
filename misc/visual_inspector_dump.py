@@ -33,6 +33,15 @@ csvResult = {}
 fnset = set()
 
 
+
+## IMPORTANT: Note that this script will automatically filter certain items from results if no command line flags
+## are specified that require those items to be included. "Training" data that does NOT include a
+## Maximo Visual Inspection Mobile Inference result and any data set that ends with "_test" (case insensitive) will
+## be omitted. See below for the "--showall" flag which explains more.
+TEST_DATASET_NAME_EYECATCHER = "_test" #any data set that ends in this string will be considered a test data set
+
+
+
 # ------------------------------------
 # Eases printing to STDERR
 def eprint(*args, **kwargs):
@@ -115,6 +124,7 @@ def setupAPIAccess(url, user, passwd):
 # an image is a false negative.  With a 60K image dataset, the script completed in about 30 seconds.
 # If either "--category" or "--objlabel" is specified, the script will look for false negatives,
 # causing the script to run longer.  With a 60K image dataset, the script completed in about 60 seconds.
+#
 def getInputs():
   parser = argparse.ArgumentParser(description="Tool to classify all images in a directory")
   parser.add_argument('--dsid', action="store", dest="dsid", required=False,
@@ -130,7 +140,7 @@ def getInputs():
   parser.add_argument('--passwd', action="store", dest="passwd", required=True,
                       help="Password")
   parser.add_argument('--showall', action="store_true", dest="showall", required=False,
-                      help="(Optional) Show all image data. By default, this tool filters training data.")
+                      help="(Optional) Show all image data. By default, this tool filters training data, and any data set that ends in \"" + TEST_DATASET_NAME_EYECATCHER + "\" (case insensitive) which indicates test data, not production data.")
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument('--output', action="store", dest="output",
                       help="Output file name eg output.csv")
@@ -321,7 +331,7 @@ def getFalseNegativeSet(dsid=None, categoryname=None, objlabel=None):
   return
 
 # return an array of files with extra data attached like the datasetid, URL, and owner that are not available via the API response directly
-def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instance-name"):
+def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instance-name", showall=False):
   # get list of all datasets
   logging.info("Retrieving global dataset list...")
   global fnset
@@ -335,6 +345,10 @@ def fetchCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/instanc
   rows = []
   #iterate across all datasets, one-by-one
   for dataset in datasets:
+    logging.info("Fetching " + dataset['name'])
+    if (not showall) and dataset['name'].lower().endswith(TEST_DATASET_NAME_EYECATCHER):
+      logging.info("Skipping retrieval of data from dataset " + dataset['name'] + " since its name matches " + TEST_DATASET_NAME_EYECATCHER + " (case insensitive).")
+      continue
     #get files for this specific dataset
     dscsvdata = getUserMetadata(dataset['_id'])
     getFalseNegativeSet(dataset['_id'], categoryname, objlabel)
@@ -367,7 +381,7 @@ def generateCSV(dsid=None, categoryname=None, objlabel=None, url="http://ip/inst
   numrows = 0
   global fnset
 
-  rows = fetchCSV(dsid=dsid, categoryname=categoryname, objlabel=objlabel, url=url)
+  rows = fetchCSV(dsid=dsid, categoryname=categoryname, objlabel=objlabel, url=url, showall=showall)
   
   # Generate minimal info CSV
   with open(filename, 'w', newline='') as csvfile:
