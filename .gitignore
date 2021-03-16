@@ -7,3 +7,4 @@ bats/
 *.egg-info/
 build/
 dist/
+.idea
