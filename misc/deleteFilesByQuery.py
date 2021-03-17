@@ -20,6 +20,8 @@
 import argparse
 import json
 import sys
+
+import requests
 import vapi
 import logging as logger
 from concurrent.futures import ThreadPoolExecutor
@@ -73,7 +75,7 @@ def setupServer():
         server = vapi.connect_to_server(args.baseurl, args.token)
     except Exception as e:
         print("Error: Failed to setup server.", file=sys.stderr)
-        logger.debug(dict(e))
+        print(e)
         exit(2)
 
 
@@ -91,7 +93,8 @@ def deleteFilesInList(fileList):
 
     numberOfFiles = len(fileList)
     logger.debug(f"deleting {numberOfFiles} files from dataset id {args.dsid}.")
-    if numberOfFiles < 0:
+    if numberOfFiles <= 0:
+        print("No files found matching the given query criteria.")
         logger.info("Query found no files to delete.")
         return
     if numberOfFiles > 1000:
@@ -102,16 +105,34 @@ def deleteFilesInList(fileList):
     if not okToDeleteFiles(fileList):
         return
     logger.info(f"Deleting {numberOfFiles} files from dataset id {args.dsid}.")
-    with ThreadPoolExecutor(max_workers=numberOfThreads) as executor:
-        results = executor.map(deleteFile, fileList)
 
+    # The vision-tools library does not support group/batch delete of files.
+    # So we have to use the requests interface directly.
+    idList = [dic['_id'] for dic in fileList]
+    payload = {
+        "action": "delete",
+        "id_list": idList
+    }
 
-def deleteFile(fileObj):
-    pserver = vapi.connect_to_server(args.baseurl, args.token)
-    fileid = fileObj.get("_id", "missingId")
-    logger.debug(f"Deleting file id {fileid}")
+    url = f"{server.server.baseurl}/datasets/{args.dsid}/files/action"
+    headers = {
+        "x-auth-token":  server.server.token
+    }
+    rsp = requests.post(url, headers=headers, verify=False, json=payload)
 
-    pserver.files.delete(args.dsid, fileid)
+    rspData = rsp.json()
+    if rsp.ok:
+        if "result" in rspData:
+            print(f"""successfully deleted {rspData["success_count"]}, failed on {rspData["fail_count"]}""")
+            logger.debug(json.dumps(rsp.json(), indent=2))
+        else:
+            print(f"""""", file=sys.stderr)
+            print(json.dumps(rspData, indent=2), file=sys.stderr)
+    else:
+        print(f"delete operation rejected by server with code {rsp.status_code}.", file=sys.stderr)
+        if "success_count" in rspData:
+            print(f"""successfully deleted {rspData["success_count"]}, failed on {rspData["fail_count"]}""", file=sys.stderr)
+        print(json.dumps(rspData, indent=2), file=sys.stderr)
 
 
 def okToDeleteFiles(fileList):
