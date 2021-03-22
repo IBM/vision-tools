@@ -19,35 +19,18 @@
 #  IBM_PROLOG_END_TAG
 
 """
-This script will backup a Mongod DB. It is designed to work with pre-8.0.0
-version of MVI (pre-MAS) as well as post 8.0.0.  The difference is in the
-way the connection is made to Mongo.
+This script will restore a backup zip file into a running Mongo DB. It is designed
+to restore into post 8.0.0 MVI environments only.
 
-With pre-8.0.0, the script requires
-  1. An SSH tunnel has been establish to the MVI mongoDB pod
-     (and is still active when this script is run).
-  2. The mongoDB login credentials are provided as parameters to this script.
-     The presence (or absence) of these creds is used to determine whether
-     the script is backing a pre-8.0.0 MVI MongoDB or not.
-
-For post 8.0.0, the script requires
-  1. OCP cluster information for the cluster in which MVI is running.
-     This information can be provided via parameters to the script, or the
-     user can login and set the correct project before running this script.
-  In a post 8.0.0 action, this script will obtain the MongoDB login credentials
-  from the OCP cluster. To accomplish this, the OCP user login MUST have enough
-  authority for the script to examine MVI secret information.
-
-The mongoDB backup data is stored in a zipfile with the name provided to the script.
+This zip if is expected to have files with the names of the collection that is
+backed up there. Only expected collections are restored.
 """
 import argparse
 import base64
 import json
-import os
 import subprocess
 import sys
 import logging
-import shutil
 
 import pymongo
 import zipfile
@@ -65,9 +48,9 @@ mongoClient = None
 mviDatabase = None
 args = {}
 
-collections = ["DataSets", "DLTasks", "TrainedModels", "ProjectGroups", "BGTasks", "DataSetCategories",
-               "DataSetFiles", "DataSetFileLabels", "DataSetFileUserKeys", "DataSetTags", "DataSetActiontags",
-               "DataSetFileActionLabels", "DataSetFileObjectLabels", "InferenceOps", "InferenceDetails",
+collections = ["BGTasks", "DLTasks", "DataSets", "DataSetCategories", "DataSetFiles", "DataSetFileLabels",
+               "DataSetFileUserKeys", "DataSetTags", "DataSetActiontags", "DataSetFileActionLabels",
+               "DataSetFileObjectLabels", "InferenceOps", "InferenceDetails", "ProjectGroups", "TrainedModels",
                "WebAPIs", "UserDNNs", "DnnScripts", "DeployableBinaries", "DockerHostPorts", "SysUsers",
                "Tokens", "RegisteredApps"]
 
@@ -81,7 +64,7 @@ def main():
         try:
             loginToCluster()
             connectToMongo()
-            backupMongoCollections()
+            restoreMongoCollections()
             disconnectFromMongo()
             logoutOfCluster()
         except OcpException as oe:
@@ -226,54 +209,79 @@ def logoutOfCluster():
         logging.debug(process.stdout)
 
 
-def backupMongoCollections():
-    """ Creates a zip file containing all collections in the collection list that exist in the database."""
+def restoreMongoCollections():
+    """ Takes files from the specified zip file and restores them into the same
+    same collection in the target mongoDB."""
 
-    zipFileName = f"{args.zipfile}.zip"
-    backupFile = zipfile.ZipFile(zipFileName, mode="w", compression=zipfile.ZIP_DEFLATED)
-    dbCollections = mviDatabase.list_collection_names()
+    zipFileName = f"{args.zipfilename}"
+    zipArchive = zipfile.ZipFile(zipFileName, mode="r")
+    zippedFiles = zipArchive.namelist()
 
-    from datetime import datetime
-    now = datetime.now()
-
-    dirname = f"""{now.strftime("%Y%m%d%H%M%S")}-{os.getpid()}"""
-    os.mkdir(dirname)
-
-    logging.info(f"backing up {len(collections)} collections.")
-    for collection in collections:
-        if collection in dbCollections:
-            backupCollection(backupFile, collection)
+    logging.info(f"Looking to restore up to {len(zippedFiles)} collections.")
+    for zippedFileName in zippedFiles:
+        if zippedFileName in collections:
+            restoreCollection(zipArchive, zippedFileName, zippedFileName)
         else:
-            logging.info(f"Skipping collection '{collection}'.")
+            logging.info(f"Skipping archive file '{zippedFileName}'.")
 
-    backupFile.close()
-    shutil.rmtree(dirname)
-    logging.info("Finished backup.")
+    zipArchive.close()
+    logging.info("Finished restore.")
 
 
-def backupCollection(zipFile, collection):
-    """ Extract collection from DB, write it to a file, and add file to the zip file."""
+def restoreCollection(zipArchive, zippedFileName, collection):
+    """ Restore the indicated zipped file into the indicated collection."""
 
-    dbCollection = mviDatabase[collection]
-    logging.info(f"Backing up {dbCollection.count()} documents from collection {collection}.")
+    logging.info(f"Restoring collection '{collection}' from {zippedFileName}.")
 
-    documents = dbCollection.find({})
-    fileName = f"{collection}"
+    with zipArchive.open(zippedFileName, 'r') as myfile:
+        jsonData = json.loads(myfile.read())
 
-    with open(fileName, "w") as file:
-        file.write("[")
-        i = 0
-        for document in documents:
-            if i > 0:
-                file.write(",")
-                if i % 1000 == 0:
-                    logging.debug(f"{i}")
-            file.write(json.dumps(document))
-            i += 1
-        file.write("]")
+    if jsonData:
+        # We process the zipped collection in slices because the whole thing
+        # can be too big for mongo to handle in 1 call. We use 1000 item slices.
+        sliceSize = 1000
+        sliceStart = 0
+        sliceEnd = sliceSize
+        numberOfItems = len(jsonData)
+        inserted = sliceSize
+        dbCollection = mviDatabase[collection]
 
-    zipFile.write(fileName)
-    os.remove(fileName)
+        logging.info(f"Restoring {numberOfItems}...")
+        while sliceStart < numberOfItems:
+            logging.debug(f"working with slice {sliceStart}-{sliceEnd}.")
+            # Only do a complete slice if we have saved at least 50 consecutive
+            # documents without a failure.
+            if inserted >= 50:
+                try:
+                    dbCollection.insert_many(jsonData[sliceStart:sliceEnd])
+                    inserted = sliceSize
+                except pymongo.errors.BulkWriteError:
+                    # BulkWriteError usually indicates DuplicateKeyError, in which case MongoDB
+                    # stops processing. So fallback to inserting individual documents where we
+                    # can catch duplicate keys and continue through the slice.
+                    inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
+            else:
+                inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
+            sliceStart = sliceEnd
+            sliceEnd += sliceSize
+
+
+def insertDocuments(dbCollection, collectionName, documents):
+    """ Insert the documents in the document list one at a time so that DuplicateKeyError's
+    can be caught, reported, and moved past. Count the number of consecutive successful saves
+    and report that number back to the caller."""
+
+    consecutiveInserts = 0
+    logging.info("Falling back to individual document insertion to handle duplicate keys.")
+    for doc in documents:
+        try:
+            dbCollection.insert(doc)
+            consecutiveInserts += 1
+        except pymongo.errors.DuplicateKeyError:
+            logging.warning(f"""{collectionName}: duplicate Key f{doc["_id"]}""")
+            consecutiveInserts = 0
+
+    return consecutiveInserts
 
 
 def getInputs():
@@ -321,7 +329,7 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
     parser.add_argument('--log', action="store", dest="logLevel", type=str, required=False, default="info",
                         help='Specify logging level (default is "info")')
 
-    parser.add_argument('zipfile', metavar='zipFile', type=str,
+    parser.add_argument('zipfilename', metavar='zipFile', type=str,
                         help='Basename of the zip file to contain the DB backup.')
     try:
         results = parser.parse_args()
