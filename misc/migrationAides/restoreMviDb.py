@@ -20,10 +20,11 @@
 
 """
 This script will restore a backup zip file into a running Mongo DB. It is designed
-to restore into post 8.0.0 MVI environments only.
+to restore into post 8.0.0 MVI environments only though there is nothing that prevents/blocks
+restoring into a pre-8.0.0 environment.
 
-This zip if is expected to have files with the names of the collection that is
-backed up there. Only expected collections are restored.
+This zip file is expected to have files with the name of the collection that is
+backed up there. Only expected collections (those in the `collections` list are restored.
 """
 import argparse
 import base64
@@ -291,10 +292,10 @@ def getInputs():
 
     returns argparse results object
     """
-    parser = argparse.ArgumentParser(description="Tool to backup an MVI MongoDB to a zip file.",
+    parser = argparse.ArgumentParser(description="Tool to restore an MVI MongoDB zip file backup.",
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='''
-To backup a pre-8.0.0 MVI installation, you must specify '--mongouser'
+To restore into a pre-8.0.0 MVI installation, you must specify '--mongouser'
 and '--mongopassword'; but the OCP cluster related parameters ('--cluster_url',
 '--ocpuser', and '--ocppasswd, and '--ocptoken') should not be present.
 
