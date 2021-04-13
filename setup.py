@@ -6,7 +6,7 @@ with open("pipDescription.md", "r") as fh:
 
 setup(
     name="Vision Tools",
-    version="0.2.0",
+    version="0.2.1",
     author="Carl Bender",
     author_email="bcarl@us.ibm.com",
     description="Tools to interface with an IBM Visual Inspection server's ReST API.",
@@ -20,6 +20,7 @@ setup(
     scripts=[ "cli/vision" ],
     install_requires=[
          "requests",
+         "opencv-python", # this is required by 'vision deployed-models infer' #38
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
