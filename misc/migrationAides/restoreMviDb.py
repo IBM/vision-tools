@@ -263,6 +263,7 @@ def restoreCollection(zipArchive, zippedFileName, collection):
                     inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
             else:
                 inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
+            #inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
             sliceStart = sliceEnd
             sliceEnd += sliceSize
 
