@@ -36,8 +36,7 @@ RUN  set -eux; \
             ;; \
     esac; \
     pip install --upgrade pip && \
-    pip install requests && \
-    pip install Vision-Tools && \
+    pip install requests pymongo Vision-Tools && \
     # Install kubectl
     curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/${_ARCH}/kubectl" && \
 	chmod +x kubectl && \
@@ -52,6 +51,14 @@ RUN  set -eux; \
     curl -LO "https://mirror.openshift.com/pub/openshift-v4/clients/oc/${OC_VERSION}/${OC_ARCH}/oc.tar.gz" && \
     tar -xzvf "oc.tar.gz" -C "/usr/local/bin/" && \
     chmod +x /usr/local/bin/oc && \
-    rm oc.tar.gz
+    rm oc.tar.gz && \
+    mkdir -p /usr/local/migration/vapi/accessors && \
+    touch /usr/local/migration/vapi/__init__.py && \
+    touch /usr/local/migration/vapi/accessors/__init__.py && \
+    chmod -R 777 /usr/local/migration
+
+USER 1979
+COPY cmds/* /usr/local/migration/
+COPY lib/vapi/accessors/* /usr/local/migration/vapi/accessors/
 
 CMD python3 --version; rsync --version

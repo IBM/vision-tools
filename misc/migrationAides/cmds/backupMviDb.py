@@ -47,8 +47,8 @@ import sys
 import logging
 import shutil
 
-import mviMigrationAides.MongoAccessor as MongoAccessor
-import mviMigrationAides.ClusterAccessor as ClusterAccessor
+import vapi.accessors.MongoAccessor as MongoAccessor
+import vapi.accessors.ClusterAccessor as ClusterAccessor
 import zipfile
 
 clusterPresent = False
@@ -66,8 +66,9 @@ def main():
         setLoggingControls(args.logLevel)
         try:
             with ClusterAccessor.ClusterAccessor(standalone=not clusterPresent, clusterUrl=args.cluster,
-                                                 user=args.ocpUser, password=args.ocpPasswd, token=args.ocpToken):
-                with MongoAccessor.MongoAccessor(mongoDbCreds, args.mongoPod) as ma:
+                                                 user=args.ocpUser, password=args.ocpPasswd, token=args.ocpToken,
+                                                 project=args.project) as cluster:
+                with MongoAccessor.MongoAccessor(mongoDbCreds, mongoService=args.mongoService, cluster=cluster) as ma:
                     backupMongoCollections(ma)
         except ClusterAccessor.OcpException as oe:
             print(oe)
@@ -163,8 +164,8 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
                         help="MongoDb Admin user for a pre-8.0.0 installation.")
     parser.add_argument("--mongopassword", action="store", dest="mongopw", type=str, required=False,
                         help="MongoDb Admin password for a pre-8.0.0 installation.")
-    parser.add_argument("--mongopod", action="store", dest="mongoPod", type=str, required=False,
-                        help="Pod name for the mongoDb pod in a pre-8.0.0 installation.")
+    parser.add_argument("--mongoservice", action="store", dest="mongoService", type=str, required=False,
+                        help="Service name for the mongoDb service in the cluster (only valid when running in a POD).")
     parser.add_argument('--cluster_url', action="store", dest="cluster", type=str, required=False,
                         help="URL to OCP cluster.")
     parser.add_argument('--ocptoken', action="store", dest="ocpToken", type=str, required=False,

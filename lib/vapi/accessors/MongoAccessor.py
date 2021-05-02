@@ -23,9 +23,10 @@ class MongoAccessor:
     Supports connections in standalone and OCP environments depending upon inputs.
     """
 
-    def __init__(self, creds=None, mongoPodIp=None):
+    def __init__(self, creds=None, mongoService=None, cluster=None):
         self.mongoDbCreds = creds
-        self.mongoPodIp = mongoPodIp
+        self.mongoService = mongoService
+        self.cluster = cluster
         self.tunnelProcess = None
         self.mongoClient = None
         self.mviDatabase = None
@@ -45,8 +46,7 @@ class MongoAccessor:
         logging.info("Connecting to mongo")
 
         user, passwd = self.getMongoDbCredentials()
-        self.tunnelToOcpMongo()
-        self.loginToDb(user, passwd)
+        self.loginToDb(user, passwd, hostname=self.getMongoHostName())
 
     def getMongoDbCredentials(self):
         """ Returns mongoDB username and password based upon provided access info."""
@@ -55,9 +55,8 @@ class MongoAccessor:
         if self.mongoDbCreds is not None:
             return self.mongoDbCreds["userName"], self.mongoDbCreds["password"]
 
-        cmdArgs = ["oc", "get", "secret", "vision-secrets", "-o", "json"]
-
         # otherwise get credentials from the cluster
+        cmdArgs = ["oc", "get", "secret", "vision-secrets", "-o", "json"]
         process = subprocess.run(cmdArgs, capture_output=True)
         if process.returncode == 0:
             jsonData = json.loads(process.stdout)
@@ -71,21 +70,31 @@ class MongoAccessor:
 
         return userName, password
 
+    def getMongoHostName(self):
+        """ getMongoHostName returns the host name to use for the mongo connection.
+            The host name depends upon the type of execution environment and the target mongo.
+            If we are running in a clustered environment, the host name is the mongoDb service name.
+            if we are running in a "regular" shell, the host name will be "localhost", but we may need to
+            establish the appropriate "tunnel" to the target mongo pod. For a standalone environment,
+            the tunnel must already be established.
+        """
+        if self.mongoService:
+            hostname = self.mongoService
+        elif self.cluster.isStandalone:
+            hostname = "localhost"
+        else:
+            # Assume OCP cluster for now. May need to expand in the future to handle IBM Cloud Private clusters.
+            hostname = "localhost"
+            self.tunnelToOcpMong()
+        logging.debug(f"returning hostname '{hostname}'.")
+        return hostname
+
     def tunnelToOcpMongo(self):
         """ Sets up a tunnel the mongoDB if backing up a post 8.0.0 database."""
-        if self.mongoPodIp:
-            self.establishStandaloneTunnel(27017, 27017)
-        else:
-            pod = self.getOcpMongoPod()
-            if pod is None:
-                raise MviMongoException("Could not find MongoDB Pod.")
-            self.establishOcpTunnel(pod, 27017, 27017)
-
-    def establishStandaloneTunnel(self, mongoPod, remotePort, localPort):
-        cmdArgs = ["oc", "port-forward", "--address", "0.0.0.0", mongoPod, f"{localPort}", f"{remotePort}"]
-        logging.debug(f"Setting tunnel to '{mongoPod}'")
-
-        self.tunnelProcess = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
+        pod = self.getOcpMongoPod()
+        if pod is None:
+            raise MviMongoException("Could not find MongoDB Pod.")
+        self.establishOcpTunnel(pod, 27017, 27017)
 
     def getOcpMongoPod(self):
         """ Returns the pod name of the running mongoDB pod in an OCP cluster."""
@@ -109,15 +118,15 @@ class MongoAccessor:
 
         self.tunnelProcess = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
 
-    def loginToDb(self, user, passwd, database="DLAAS"):
+    def loginToDb(self, user, passwd, hostname="localhost", database="DLAAS"):
         """ Logins into MongoDB and setups access to the DLAAS database."""
-        logging.debug(f"logging into mongo db '{database}', as '{user}'")
+        logging.debug(f"logging into mongo db '{database}', at '{hostname}' as '{user}'")
 
         if self.mviVersion == 1:
             authProtocol = "MONGODB-CR"
         else:
             authProtocol = "SCRAM-SHA-1"
-        uri = f"mongodb://{user}:{passwd}@localhost:27017/?authSource={database}&authMechanism={authProtocol}"
+        uri = f"mongodb://{user}:{passwd}@{hostname}:27017/?authSource={database}&authMechanism={authProtocol}"
         self.mongoClient = pymongo.MongoClient(uri)
         logging.debug(f"db conn={self.mongoClient}")
         self.mviDatabase = self.mongoClient[database]

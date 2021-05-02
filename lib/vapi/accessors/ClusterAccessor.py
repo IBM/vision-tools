@@ -66,3 +66,6 @@ class ClusterAccessor:
             process = subprocess.run(cmdArgs, capture_output=True)
             logging.debug(process.stdout)
 
+    def isStandalone(self):
+        return self.standalone
+
