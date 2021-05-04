@@ -59,6 +59,6 @@ RUN  set -eux; \
 
 USER 1979
 COPY cmds/* /usr/local/migration/
-COPY lib/vapi/accessors/* /usr/local/migration/vapi/accessors/
+COPY lib/accessors/* /usr/local/migration/vapi/accessors/
 
 CMD python3 --version; rsync --version

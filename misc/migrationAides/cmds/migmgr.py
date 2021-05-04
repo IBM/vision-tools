@@ -193,11 +193,12 @@ def doDbRestore():
 
     if restoreResult.returncode == 0:
         logging.info("DB Restore complete.")
-        setStatus(Status.DB_BACKUP_COMPLETE)
+        setStatus(Status.DB_RESTORE_COMPLETE)
         logging.info("DB migration complete.")
         setStatus(Status.DB_COMPLETE)
     else:
         logging.info(f"DB Restore failed ({restoreResult.returncode})")
+        setStatus(Status.DB_RESTORE_FAILED)
         setStatus(Status.DB_BACKUP_FAILED)
 
 
