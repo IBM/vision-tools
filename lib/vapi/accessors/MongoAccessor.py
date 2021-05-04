@@ -3,8 +3,6 @@ import subprocess
 import signal
 import json
 import base64
-import re
-
 import pymongo
 
 collections = ["DataSets", "DLTasks", "TrainedModels", "ProjectGroups", "BGTasks", "DataSetCategories",
@@ -39,7 +37,7 @@ class MongoAccessor:
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
         """ Context Manager required method to work with `with` statement."""
-        logging.debug(f"__exit__; etype={exception_type}; evalue={exception_value}")
+        logging.debug(f"MongoAccessor.__exit__; etype={exception_type}; evalue={exception_value}")
         self.close()
 
     def connectToMongo(self):
@@ -57,9 +55,10 @@ class MongoAccessor:
 
         # otherwise get credentials from the cluster
         cmdArgs = ["oc", "get", "secret", "vision-secrets", "-o", "json"]
-        process = subprocess.run(cmdArgs, capture_output=True)
+        process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
         if process.returncode == 0:
-            jsonData = json.loads(process.stdout)
+            jsonData = json.loads(stdout.decode('utf-8'))
             userName = base64.b64decode(jsonData["data"]["mongodb-admin-username"]).decode("utf-8")
             password = base64.b64decode(jsonData["data"]["mongodb-admin-password"]).decode("utf-8")
             logging.debug(f"user={userName}, pw={password}")
@@ -73,19 +72,19 @@ class MongoAccessor:
     def getMongoHostName(self):
         """ getMongoHostName returns the host name to use for the mongo connection.
             The host name depends upon the type of execution environment and the target mongo.
-            If we are running in a clustered environment, the host name is the mongoDb service name.
+            If the name of a mongodb service was provided, the host name is the mongoDb service name.
             if we are running in a "regular" shell, the host name will be "localhost", but we may need to
             establish the appropriate "tunnel" to the target mongo pod. For a standalone environment,
             the tunnel must already be established.
         """
         if self.mongoService:
             hostname = self.mongoService
-        elif self.cluster.isStandalone:
-            hostname = "localhost"
+        #elif self.cluster.isStandalone:
+        #    hostname = "localhost"
         else:
             # Assume OCP cluster for now. May need to expand in the future to handle IBM Cloud Private clusters.
             hostname = "localhost"
-            self.tunnelToOcpMong()
+            self.tunnelToOcpMongo()
         logging.debug(f"returning hostname '{hostname}'.")
         return hostname
 
@@ -98,19 +97,8 @@ class MongoAccessor:
 
     def getOcpMongoPod(self):
         """ Returns the pod name of the running mongoDB pod in an OCP cluster."""
-        cmdArgs = ["oc", "get", "pods"]
-        pod = None
-
-        process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
-        for line in process.stdout:
-            string = line.decode()
-            logging.debug(string)
-            if re.search("-mongodb-", string):
-                pod = string.split(" ")[0]
-                break
-        process.wait()
-
-        return pod
+        pods = self.cluster.getPods("-mongodb-")
+        return pods[0] if len(pods) > 0 else ""
 
     def establishOcpTunnel(self, mongoPod, remotePort, localPort):
         cmdArgs = ["oc", "port-forward", "--address",  "0.0.0.0", mongoPod, f"{localPort}", f"{remotePort}"]
@@ -122,10 +110,12 @@ class MongoAccessor:
         """ Logins into MongoDB and setups access to the DLAAS database."""
         logging.debug(f"logging into mongo db '{database}', at '{hostname}' as '{user}'")
 
+        # The auth mechanism changed when mondogDB was upgraded during the move to MAS
         if self.mviVersion == 1:
             authProtocol = "MONGODB-CR"
         else:
             authProtocol = "SCRAM-SHA-1"
+
         uri = f"mongodb://{user}:{passwd}@{hostname}:27017/?authSource={database}&authMechanism={authProtocol}"
         self.mongoClient = pymongo.MongoClient(uri)
         logging.debug(f"db conn={self.mongoClient}")

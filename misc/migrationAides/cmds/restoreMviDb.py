@@ -27,33 +27,20 @@ This zip file is expected to have files with the name of the collection that is
 backed up there. Only expected collections (those in the `collections` list are restored.
 """
 import argparse
-import base64
 import json
-import subprocess
 import sys
 import logging
-
 import pymongo
+
+import vapi.accessors.MongoAccessor as MongoAccessor
+import vapi.accessors.ClusterAccessor as ClusterAccessor
 import zipfile
-import re
-
-
-class OcpException(Exception):
-    pass
-
 
 clusterPresent = False
 mongoDbCreds = None
-tunnelProcess = None
-mongoClient = None
-mviDatabase = None
 args = {}
 
-collections = ["BGTasks", "DLTasks", "DataSets", "DataSetCategories", "DataSetFiles", "DataSetFileLabels",
-               "DataSetFileUserKeys", "DataSetTags", "DataSetActiontags", "DataSetFileActionLabels",
-               "DataSetFileObjectLabels", "InferenceOps", "InferenceDetails", "ProjectGroups", "TrainedModels",
-               "WebAPIs", "UserDNNs", "DnnScripts", "DeployableBinaries", "DockerHostPorts", "SysUsers",
-               "Tokens", "RegisteredApps"]
+collections = MongoAccessor.collections
 
 
 def main():
@@ -63,154 +50,22 @@ def main():
     if args is not None:
         setLoggingControls(args.logLevel)
         try:
-            loginToCluster()
-            connectToMongo()
-            restoreMongoCollections()
-            disconnectFromMongo()
-            logoutOfCluster()
-        except OcpException as oe:
+            with ClusterAccessor.ClusterAccessor(standalone=not clusterPresent, clusterUrl=args.cluster,
+                                                 user=args.ocpUser, password=args.ocpPasswd, token=args.ocpToken,
+                                                 project=args.project) as cluster:
+                with MongoAccessor.MongoAccessor(mongoDbCreds, cluster=cluster) as ma:
+                    restoreMongoCollections(ma)
+        except ClusterAccessor.OcpException as oe:
             print(oe)
+            exit(2)
+        except MongoAccessor.MviMongoException as me:
+            print(me)
             exit(2)
     else:
         exit(1)
 
 
-def loginToCluster():
-    if mongoDbCreds is not None:
-        return
-
-    if args.cluster is not None:
-        cmdArgs = ["oc", "login", args.cluster]
-        if args.ocpToken is not None:
-            cmdArgs.extend(["--token", args.ocpToken])
-        else:
-            cmdArgs.extend(["--username", args.ocpUser, "--password", args.ocpPasswd])
-        logging.info(f"logging into cluster '{args.cluster}'")
-
-        process = subprocess.run(cmdArgs, capture_output=True)
-        if process.returncode != 0:
-            logging.error(f"Failed to login to cluster {cmdArgs}")
-            logging.error(f"output = {process.stderr}")
-            raise OcpException(f"Failed to login to cluster {args.cluster}.")
-
-        setOcpProject()
-
-
-def setOcpProject():
-    cmdArgs = ["oc", "project", args.project]
-    logging.debug(f"Setting project to '{args.project}'")
-
-    process = subprocess.run(cmdArgs, capture_output=True)
-    if process.returncode != 0:
-        logging.error(f"Failed to login to cluster {cmdArgs}")
-        logging.error(f"output = {process.stderr}")
-        raise OcpException(f"Failed to connect to project {args.project}")
-
-
-def connectToMongo():
-    logging.info("Connecting to mongo")
-
-    user, passwd = getMongoDbCredentials()
-    tunnelToMongo()
-    loginToDb(user, passwd)
-
-
-def getMongoDbCredentials():
-    """ Returns mongoDB username and password based upon provided access info."""
-
-    # If mongoDb credentials provided to the script, use those
-    if mongoDbCreds is not None:
-        return mongoDbCreds["userName"], mongoDbCreds["password"]
-
-    cmdArgs = ["oc", "get", "secret", "vision-secrets", "-o", "json"]
-
-    # otherwise get credentials from the cluster
-    process = subprocess.run(cmdArgs, capture_output=True)
-    if process.returncode == 0:
-        jsonData = json.loads(process.stdout)
-        userName = base64.b64decode(jsonData["data"]["mongodb-admin-username"]).decode("utf-8")
-        password = base64.b64decode(jsonData["data"]["mongodb-admin-password"]).decode("utf-8")
-        logging.debug(f"user={userName}, pw={password}")
-    else:
-        logging.error(f"Failed to get Mongo info -- {cmdArgs}")
-        logging.error(f"output = {process.stderr}")
-        raise OcpException(f"Could not get Mongo connection info.")
-
-    return userName, password
-
-
-def tunnelToMongo():
-    """ Sets up a tunnel the mongoDB if backing up a post 8.0.0 database."""
-    if mongoDbCreds:
-        return
-
-    pod = getMongoPod()
-    if pod is None:
-        raise OcpException("Could not find MongoDB Pod.")
-    establishTunnel(pod, 27017, 27017)
-
-
-def getMongoPod():
-    """ Returns the pod name of the running mongoDB pod in an OCP cluster."""
-    cmdArgs = ["oc", "get", "pods"]
-    pod = None
-
-    process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
-    for line in process.stdout:
-        string = line.decode();
-        logging.debug(string)
-        if re.search("-mongodb-", string):
-            pod = string.split(" ")[0]
-            break
-    process.wait()
-
-    return pod
-
-
-def establishTunnel(mongoPod, remotePort, localPort):
-    cmdArgs = ["oc", "port-forward", "--address",  "0.0.0.0", mongoPod, f"{localPort}", f"{remotePort}"]
-    logging.debug(f"Setting tunnel to '{mongoPod}'")
-
-    global tunnelProcess
-    tunnelProcess = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
-
-
-def loginToDb(user, passwd, database="DLAAS"):
-    """ Logins into MongoDB and setups access to the DLAAS database."""
-    logging.debug(f"logging into mongo db '{database}', as '{user}'")
-
-    uri = f"mongodb://{user}:{passwd}@localhost:27017/?authSource={database}&authMechanism=SCRAM-SHA-1"
-    global mongoClient
-    mongoClient = pymongo.MongoClient(uri)
-    logging.debug(f"dbconn={mongoClient}")
-    global mviDatabase
-    mviDatabase = mongoClient[database]
-
-    return mongoClient
-
-
-def disconnectFromMongo():
-    mongoClient.close()
-
-
-def logoutOfCluster():
-    """ Logs out of the OCP cluster if the script performed a login to the cluster."""
-    if mongoDbCreds is not None:
-        return
-
-    if tunnelProcess is not None:
-        logging.debug("Terminating tunnel.")
-        tunnelProcess.terminate()
-
-    if args.cluster is not None:
-        cmdArgs = ["oc", "logout"]
-        logging.info(f"logging out of cluster '{args.cluster}'")
-
-        process = subprocess.run(cmdArgs, capture_output=True)
-        logging.debug(process.stdout)
-
-
-def restoreMongoCollections():
+def restoreMongoCollections(mongo):
     """ Takes files from the specified zip file and restores them into the same
     same collection in the target mongoDB."""
 
@@ -221,7 +76,7 @@ def restoreMongoCollections():
     logging.info(f"Looking to restore up to {len(zippedFiles)} collections.")
     for zippedFileName in zippedFiles:
         if zippedFileName in collections:
-            restoreCollection(zipArchive, zippedFileName, zippedFileName)
+            restoreCollection(mongo, zipArchive, zippedFileName, zippedFileName)
         else:
             logging.info(f"Skipping archive file '{zippedFileName}'.")
 
@@ -229,7 +84,7 @@ def restoreMongoCollections():
     logging.info("Finished restore.")
 
 
-def restoreCollection(zipArchive, zippedFileName, collection):
+def restoreCollection(mongo, zipArchive, zippedFileName, collection):
     """ Restore the indicated zipped file into the indicated collection."""
 
     logging.info(f"Restoring collection '{collection}' from {zippedFileName}.")
@@ -245,7 +100,7 @@ def restoreCollection(zipArchive, zippedFileName, collection):
         sliceEnd = sliceSize
         numberOfItems = len(jsonData)
         inserted = sliceSize
-        dbCollection = mviDatabase[collection]
+        dbCollection = mongo.getMviDatabase()[collection]
 
         logging.info(f"Restoring {numberOfItems}...")
         while sliceStart < numberOfItems:
@@ -376,9 +231,7 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
 
 
 def setLoggingControls(log):
-    """ Sets output control variables for logging out output content.
-
-    Output controls are set by parameter or by ENV variable."""
+    """ Sets output control variables for logging out output content."""
     log_level = logging.INFO
     if log is not None:
         if log.lower() == "error":
@@ -390,7 +243,7 @@ def setLoggingControls(log):
         elif log.lower() == "debug":
             log_level = logging.DEBUG
 
-    logging.basicConfig(format='%(asctime)s.%(msecs)d %(levelname)s:  %(message)s',
+    logging.basicConfig(format='%(asctime)s.%(msecs)d  restoreMviDb  %(levelname)s:  %(message)s',
                                datefmt='%H:%M:%S', level=log_level)
 
 

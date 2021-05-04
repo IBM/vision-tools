@@ -174,6 +174,8 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
                         help="Username for OCP cluster admin.")
     parser.add_argument('--ocppasswd', action="store", dest="ocpPasswd", type=str, required=False,
                         help="Password of OCP admin user.")
+    parser.add_argument('--workDir', action="store", dest="workDir", type=str, required=False, default=None,
+                        help="directory to use for work files.")
     parser.add_argument('--log', action="store", dest="logLevel", type=str, required=False, default="info",
                         help='Specify logging level (default is "info")')
 
@@ -236,7 +238,7 @@ def setLoggingControls(log):
         elif log.lower() == "debug":
             log_level = logging.DEBUG
 
-    logging.basicConfig(format='%(asctime)s.%(msecs)d %(levelname)s:  %(message)s',
+    logging.basicConfig(format='%(asctime)s.%(msecs)d  backupMviDb  %(levelname)s:  %(message)s',
                                datefmt='%H:%M:%S', level=log_level)
 
 

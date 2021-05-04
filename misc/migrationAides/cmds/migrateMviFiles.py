@@ -28,19 +28,17 @@ This script must be run on the standalone system as it uses `rsync` and `rsync` 
 destination to be "local".
 """
 import argparse
-import json
 import os
 import subprocess
 import sys
 import logging
-import shutil
 
-import MongoAccessor as MongoAccessor
-import ClusterAccessor as ClusterAccessor
-import zipfile
+import vapi.accessors.ClusterAccessor as ClusterAccessor
 
 clusterPresent = False
 args = {}
+
+mountPoint = os.getenv("MIGMGR_MOUNTPOINT", "/opt/mvi/data/user1")
 
 
 def main():
@@ -48,32 +46,41 @@ def main():
     args = getInputs()
 
     if args is not None:
-        setLoggingControls(args.logLevel, args.logDir)
+        setLoggingControls(args.logLevel)
         try:
             with ClusterAccessor.ClusterAccessor(standalone=not clusterPresent, clusterUrl=args.cluster,
                                                  user=args.ocpUser, password=args.ocpPasswd, token=args.ocpToken,
                                                  project=args.project):
-                migrateFiles()
+                rc = migrateFiles()
         except ClusterAccessor.OcpException as oe:
             print(oe)
             exit(2)
     else:
         exit(1)
+    exit(rc)
 
 
 def migrateFiles():
-    taPod = getTaskAnalysisPod()
+    try:
+        taPod = ClusterAccessor.ClusterAccessor.getPods("taskanaly")[0]
+    except IndexError:
+        logging.error("Could not find task analysis pod.")
+        return 3
 
-    cmdArgs = ["oc", "rsync", "/opt/ibm/vision/volume/data", f"{taPod}:/opt/powerai-vision"]
-    process = subprocess.run(cmdArgs, capture_output=True)
-    pass
+    cmdArgs = ["oc", "rsync", mountPoint, f"{taPod}:/opt/powerai-vision/data"]
+    process = subprocess.run(cmdArgs)
+    return process.returncode
 
 
-def getTaskAnalysisPod()
-    p = subprocess.Popen("oc get pods | awk '/taskanaly/ {print $", shell=True, stdout=sp.PIPE)
+def getTaskAnalysisPod():
+    p = subprocess.Popen("oc get pods | awk '/taskanaly/ {print $1'}", shell=True, stdout=subprocess.PIPE,
+                         close_fds=True)
+    if p.returncode == 0:
+        rawOutput = p.stdout.read()
+        logging.debug(f"Found pod '{rawOutput}'")
+        return rawOutput.decode("utf-8").split()[0]
+    return None
 
-    output = p.stdout.read()
-    print(output.decode('utf-8'))
 
 def getInputs():
     """ parse command line options using argparse.
@@ -121,8 +128,6 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
     parser.add_argument('--logdir', action="store", dest="logFile", type=str, required=False, default="./",
                         help='Optional directory to store logging output. Directory MUST end in a slash ("/")')
 
-    parser.add_argument('zipfile', metavar='zipFile', type=str,
-                        help='Basename of the zip file to contain the DB backup.')
     try:
         results = parser.parse_args()
 
@@ -147,7 +152,7 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
     return results
 
 
-def setLoggingControls(log, logDir="./"):
+def setLoggingControls(log):
     """ Sets output control variables for logging out output content.
 
     Output controls are set by parameter or by ENV variable."""
@@ -162,13 +167,8 @@ def setLoggingControls(log, logDir="./"):
         elif log.lower() == "debug":
             log_level = logging.DEBUG
 
-    logFile = f"{logDir}mviMigrateFiles-{os.getpid()}.log"
-    logging.basicConfig(format='%(asctime)s.%(msecs)d %(levelname)s:  %(message)s',
+    logging.basicConfig(format='%(asctime)s.%(msecs)d  migrateMviFiles  %(levelname)s:  %(message)s',
                         datefmt='%H:%M:%S', level=log_level,
-                        handlers=[
-                            logging.FileHandler(logFile),
-                            logging.StreamHandler()
-                        ]
                         )
 
 
