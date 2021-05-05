@@ -1,0 +1,61 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{deploymentName}}
+  labels:
+    run: {{deploymentName}}
+    app: vision
+    chart: {{chartName}}
+    release: {{releaseName}}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: {{deploymentName}}
+      labels:
+        run: {{deploymentName}}
+        app: vision
+        chart: {{chartName}}
+        release: {{releaseName}}
+    spec:
+      containers:
+      - name: {{deploymentName}}
+        image: {{imageName}}
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/bin/sh"
+          - "-c"
+        args:
+          - 'touch /tmp/healthy && touch /opt/powerai-vision/data/logs/migration && echo "migration" && echo "migration" >&2 && sleep 180' 
+        volumeMounts:
+          - name: dlaas-data
+            mountPath: "/opt/powerai-vision/data"
+            subPath: data
+        resources:
+          limits:
+            cpu: 0
+            memory: 0Mi
+        readinessProbe:
+          exec:
+            command:
+              - cat
+              - /tmp/healthy
+          periodSeconds: 5
+      volumes:
+        - name: dlaas-data
+          persistentVolumeClaim:
+            claimName: {{pvcName}}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - ppc64le
+                - amd64
+  selector:
+    matchLabels:
+      run: {{deploymentName}}
