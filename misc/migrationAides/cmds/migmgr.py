@@ -116,7 +116,7 @@ def doMigration():
         completions += 1
     if isStatusSet(Status.DB_RESTORE_COMPLETE):
         completions += 1
-    if completions == len(arg.migrations):
+    if completions == len(args.migrations):
         setStatus(Status.COMPLETE)
 
 

@@ -49,7 +49,7 @@ RUN  set -eux; \
     touch /usr/local/migration/vapi/accessors/__init__.py && \
     chmod -R 775 /usr/local/migration
 
-USER 1979
+USER 1979:1979
 COPY cmds/* /usr/local/migration/
 COPY lib/accessors/* /usr/local/migration/vapi/accessors/
 

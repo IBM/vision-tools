@@ -38,7 +38,7 @@ import vapi.accessors.ClusterAccessor as ClusterAccessor
 clusterPresent = False
 args = {}
 
-mountPoint = os.getenv("MIGMGR_MOUNTPOINT", "/opt/powerai-vision/data")
+mountPoint = os.getenv("MIGMGR_MOUNTPOINT", "/opt/powerai-vision/data/")
 
 
 def main():
@@ -68,6 +68,7 @@ def migrateFiles():
         return 3
 
     cmdArgs = ["oc", "rsync", mountPoint, f"{taPod}:/opt/powerai-vision/data"]
+    logging.info(f"running '{cmdArgs}'")
     process = subprocess.run(cmdArgs)
     return process.returncode
 
