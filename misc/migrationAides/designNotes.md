@@ -4,12 +4,12 @@
 
 The need for a migration tool originates in the transition of IBM Visual Insights to the Maximo Application Suite
 (and the new name of Maximo Visual Inspection). This transition required a move from a standalone environment to
-an Open Shift (aka OCP) environment. This move meant that there was not an easy way to move the storage from the standalone
-environment into the OCP environment.
+an Open Shift (aka OCP) environment. This move meant that there was not an easy way to move the storage from the
+standalone environment into the OCP environment.
 
 For most users, this transition can be handled by exporting datasets and models from the standalone 
 environment and importing them into the OCP environment. This approach essentially recreates the resource which 
-means new IDs are generate. There is a class of users where this approach is not effective. These users are
+means new IDs are generated. There is a class of users where this approach is not effective. These users are
 using the Maximo Visual Inspection App and performing inspections on manufacturing lines.  These users have
 lots of data and lots of associations between resources. For these users, a different method is needed.
 
@@ -65,11 +65,12 @@ Two primary factors influenced the approach for the database migration
   1. There was a large version change in the mongoDBs when MVI moved into the OCP environment.
   2. There is not an easy way to do a live transfer from one mongoDB to another.
 
-Considering these factors, the database migration is performed by custom scripts (not mongo utilities) and is done
-in a backup and restore manner. There will be one script to back up the collections that MVI cares about. The back up
-script will create a zip file containing the extracted collections. There wil also be a restore script that will take
-the back up zip file and restore it into the target mongoDB.  By using this back up and restore, the issues with
-mongoDB version differences are avoided.
+Considering these factors, and the fact that we want control over how to handle duplicate key exceptions, the
+database migration is performed by custom scripts (not mongo utilities) and is done in a backup and restore manner.
+There will be one script to back up the collections that MVI cares about. The back up script will create a zip
+file containing the extracted collections. There wil also be a restore script that will take the back up zip
+file and restore it into the target mongoDB.  By using this back up and restore, the issues with mongoDB version
+differences are avoided.
 
 The scripts will connect directly to the mongoDB server in the appropriate cluster (standalone or OCP). This means 
 that a method to communicate directly with the mongoDB server is required.  This will be accomplished using port
@@ -192,7 +193,7 @@ being restarted when the `sleep` completes.
 ### MVI Migration Controller Script
 
 While it is possible to manually create the deployment and deploy it using `kubectl`; for reliability and ease
-of use, a control script will be provided that provides the user interface to the migration facility.
+of use, a control script should be provided that provides the user interface to the migration facility.
 The control script will be run on the standalone server being migrated.  It will collect all information that it
 can automatically (e.g. **chartName**, **releaseName**, and**pvcName**).
 
@@ -208,11 +209,12 @@ Actual control of the migration will be provided by command line parameters. The
 The migration control script will load the docker image if it is not already loaded into docker. To facilitate
 this step, another command line parameter may be needed to identify the location of the docker image file.
 
+The control script is outside the scope of the initial delivery of the migration facility.
+
 ### Packaging
 
 There is no requirement to deliver a yum/apt installable package. Therefore, the migration facility will 
 be packaged as a tar file containing the following:
- - migration control script
  - deployment yaml template
  - docker image
 
@@ -237,3 +239,16 @@ mongoDB service).
 
 As currently designed, the migration facility migrates the entire server. This approach is required for the DB, but
 for the file system artifacts, we could allow a parameter to identify the user directory(s) to be migrated.
+
+## Future Consideration
+
+### migration control script
+
+The migration control script described above will be considered if the migration facility is enhanced
+in the future.
+
+### Use a kubernetes job
+
+This option was presented during review. The initial description appears to provide a good blend of pod and
+deployment capabilities. If the migration facility is enchanced in the future, kubernetes job facility 
+should be investigated further.

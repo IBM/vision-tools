@@ -60,7 +60,7 @@ BACKUP_MVI_DB_CMD = f"{SCRIPT_DIR}/backupMviDb.py"
 RESTORE_MVI_DB_CMD = f"{SCRIPT_DIR}/restoreMviDb.py"
 
 args = None
-mountPoint = os.getenv("MIGMGR_MOUNTPOINT", "/opt/mvi/data")
+mountPoint = os.getenv("MIGMGR_MOUNTPOINT", "/opt/powerai-vision/data")
 workDir = None
 statusDir = None
 
@@ -103,8 +103,21 @@ def doMigration():
     if args.restart:
         clearAllStatus()
 
+    # Show that migration is running
+    if not isStatusSet(Status.RUNNING):
+        setStatus(Status.RUNNING)
+
     for migration in args.migrations:
         migration()
+
+    # Show that migration completed if all requested stages completed.
+    completions = 0
+    if isStatusSet(Status.FILES_COMPLETE):
+        completions += 1
+    if isStatusSet(Status.DB_RESTORE_COMPLETE):
+        completions += 1
+    if completions == len(args.migrations):
+        setStatus(Status.COMPLETE)
 
 
 def doFileMigration():
@@ -112,6 +125,7 @@ def doFileMigration():
     logging.debug("attempting to start File Migration.")
     if not isStatusSet(Status.FILES_COMPLETE) and not isStatusSet(Status.FILES_FAILED):
         logging.info(f"Preparing for File Migration ({MIGRATE_MVI_FILES_CMD})")
+
         fileMigrateCmd = [MIGRATE_MVI_FILES_CMD,
                           "--log", args.logLevel,
                           "--cluster_url", args.destCluster,
@@ -136,6 +150,7 @@ def doFileMigration():
 def doDbMigration():
     """ performs the DB migration if not already done.
     DB Migration is 2 steps, backup to a zip file and then restore into the destination cluster."""
+
     logging.debug("attempting to start DB migration.")
 
     if not isStatusSet(Status.DB_BACKUP_COMPLETE) and not isStatusSet(Status.DB_BACKUP_FAILED):
@@ -154,7 +169,7 @@ def doDbMigration():
 def doDbBackup():
     """ performs the DB backup step if it has not already been done."""
     logging.debug("preparing for DB backup.")
-    setStatus(Status.RUNNING)
+
     setStatus(Status.DB_RUNNING)
 
     # For now, create the backup command knowing that we are only working with 1.3.0.
