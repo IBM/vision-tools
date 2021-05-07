@@ -83,6 +83,35 @@ either `files` or `db`.
 
 #### 6. Apply the deployment
 
+Running `kubectl apply -f migration_deployment.yaml` will start the deployment and the migration container.
+All execution parameters have already been specified in the `migration_deployment.yaml` file.
+
 #### 7. Monitor progress.
 
+There are 2 ways to monitor progress.
+
+##### To see detail logging information:
+ 1. `kubeclt get pods | grep migration` to get the migration pod name.  The 1st field is the pod name; copy this value
+ 2. `kubeclt logs <POD-NAME>` will show logs for the migration pod. Note that `<POD-NAME>` should be replaced with the
+hame of the migration pod coped from step 1.
+
+The `kubectl logs` command shows the contents of the log at the time it is run. You can use `kubectl logs -f <POD-NAME>` 
+to "stream" the pod log and get continual updates.
+
+##### To get progress summary information
+
+If the migration is for a standalone system, it is possible to get migration stage progress information you can
+do `ls -lrt /opt/ibm/vision/volume/data/logs/migrations/<DEPLOYMENT_NAME>`. This will provide an ordered list
+of the completed and running stages.
+
+If the migration is for a clustered system, run `kubectl exec -it <POD_NAME> /usr/local/migration/migmgr.py
+--deployment <DEPLOYMENT_NAME> --status`. The `<POD_NAME>` is the pod name as described in getting detailed logging
+information above. The `<deploymen_name>` is the same deployment name used in the `migration_deployment.yaml` file.
+The output from this command provides the exact same information as listing the directory contents previously
+described in this section.
+
 #### 8. Cleanup the deployment.
+
+Use `kubectl delete deployment migration-0506-1` to delete the deployment. This command will also cause an active
+deployment to be canceled before it is deleted. Note that `migration-0506-1` should be the actual name of the
+deployment. If this name is forgotten you can use `kubectl get deployments` to find it again.
