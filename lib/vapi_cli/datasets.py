@@ -345,6 +345,8 @@ strategy_params = f"""
    --learningrate Optional parameter to control learning adjustments.
               Value can range from 0.001 to 0.999.
    --momentum Optional parameter whose value can range from 0.1 to 0.9.
+   --segmentation_flag parameter to have polygons labels in training
+   --autoearlystop_flag parameter to specify auto early stop training
 """
 
 
