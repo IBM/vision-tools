@@ -656,7 +656,16 @@ class ParsedOptions(dict):
 
     def __getattr__(self, name: str) -> Optional[Union[str, bool]]:
         return self.get(name) or {name: self.get(k) for k in self.keys() if name in [k.lstrip("-"), k.lstrip("<").rstrip(">")]}.get(name)
-
+    
+    # Issue #40
+    # With out this method, if self["color"] = None, when we call self.get("color", "red") then None returns.
+    # To avoid this, We need to check if value None is stored or not beforehand.
+    def get(self, key, default_value=None):
+        if key in self:
+            value = super().get(key)
+            if value is not None:
+                return value
+        return default_value
 
 def docopt(
     docstring: Optional[str] = None,
