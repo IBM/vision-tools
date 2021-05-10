@@ -331,7 +331,8 @@ Initiates training of a model for the dataset."""
 strategy_params = f"""
                  [--iterations=<nmbr>] [--ratio=<real>]
                  [--weightdecay=<real>] [--learningrate=<real>]
-                 [--momentum=<real>]
+                 [--momentum=<real>] [--segmentation_flag=<0|1>]
+                 [--autoearlystop_flag=<0|1>]
 
    --iterations  Optional parameter indicating the number of iterations
               or epochs to be run
@@ -361,6 +362,7 @@ def train(params):
         '--subtype': 'nn_arch',
         '--userdnn': 'userdnn_id',
         '--hyper': 'strategy'
+
     }
     kwargs = translate_flags(expectedArgs, params)
 
