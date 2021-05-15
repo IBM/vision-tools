@@ -38,7 +38,8 @@ Assuming that the current version number, run `docker import mvi-migration_ppc64
 
 #### 4. Setup destination cluster for migration
 
-Change the token expiration from the default to 3 days. This change is needed for 2 reasons
+Change the token expiration from the default to 3 days. Steps to modify the token expiration can be found here: https://docs.openshift.com/container-platform/4.6/authentication/configuring-internal-oauth.html
+This change is needed for 2 reasons
  1. The `rsync` can take a long time and potential expire the OCP token before the database migration is done.
  2. The default token does not seem to allow multiple logins from different hosts, and the container will
     appear as a different host.
@@ -64,7 +65,7 @@ Use `sed` to edit the template file into a deployment yaml definition.
 cat migration_deployment_template.yaml | sed -e 's/{{deploymentName}}/mvi-migration-0501-2/g' \
   -e 's/{{chartName}}/ibm-visual-inspection-prod-3.0.0/' \
   -e 's/{{releaseName}}/vision/' \
-  -e 's/{{imageName}}/mvi-migration_ppc64le:1.0.0' \
+  -e 's/{{imageName}}/mvi-migration_ppc64le:1.0.0/' \
   -e 's/{{pvcName}}/vision-data-pvc/' > migration_deployment.yaml
 ```
 
@@ -91,8 +92,8 @@ All execution parameters have already been specified in the `migration_deploymen
 There are 2 ways to monitor progress.
 
 ##### To see detail logging information:
- 1. `kubeclt get pods | grep migration` to get the migration pod name.  The 1st field is the pod name; copy this value
- 2. `kubeclt logs <POD-NAME>` will show logs for the migration pod. Note that `<POD-NAME>` should be replaced with the
+ 1. `kubectl get pods | grep migration` to get the migration pod name.  The 1st field is the pod name; copy this value
+ 2. `kubectl logs <POD-NAME>` will show logs for the migration pod. Note that `<POD-NAME>` should be replaced with the
 hame of the migration pod coped from step 1.
 
 The `kubectl logs` command shows the contents of the log at the time it is run. You can use `kubectl logs -f <POD-NAME>` 
@@ -104,7 +105,7 @@ If the migration is for a standalone system, it is possible to get migration sta
 do `ls -lrt /opt/ibm/vision/volume/data/logs/migrations/<DEPLOYMENT_NAME>`. This will provide an ordered list
 of the completed and running stages.
 
-If the migration is for a clustered system, run `kubectl exec -it <POD_NAME> /usr/local/migration/migmgr.py
+If the migration is for a clustered system, run `kubectl exec -it <POD_NAME> -- /usr/local/migration/migmgr.py
 --deployment <DEPLOYMENT_NAME> --status`. The `<POD_NAME>` is the pod name as described in getting detailed logging
 information above. The `<deploymen_name>` is the same deployment name used in the `migration_deployment.yaml` file.
 The output from this command provides the exact same information as listing the directory contents previously
