@@ -182,6 +182,7 @@ Usage:
   trained-models deploy (--modelid=<model-id> | --id=<model-id>) [--name=<name>] [--accel=<accel_type>]
                         [--userdnnid=<user_dnn_UUID]
                         [--dnnscriptid=<dnn_script_UUID]
+                        [--datasetid=<dataset_UUID]
 
 Where:
   --modelid | --id  Required parameter that identifies the model to deploy.
@@ -207,6 +208,7 @@ def deploy(params):
 
     model = params.get("--modelid", "missing_id")
     name = params.get("--name", None)
+    datasetid = params.get("--datasetid", None)
     expectedArgs = {
         '--accel': 'accel_type',
         '--userdnnid': 'userdnn_id',
@@ -214,7 +216,7 @@ def deploy(params):
     }
     kwargs = translate_flags(expectedArgs, params)
 
-    rsp = server.deployed_models.create(model, name, **kwargs)
+    rsp = server.deployed_models.create(model, datasetid, name, **kwargs)
     if rsp is None:
         reportApiError(server, f"Failure attempting to get model id '{model}'")
     else:
