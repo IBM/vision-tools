@@ -182,7 +182,7 @@ Usage:
   trained-models deploy (--modelid=<model-id> | --id=<model-id>) [--name=<name>] [--accel=<accel_type>]
                         [--userdnnid=<user_dnn_UUID]
                         [--dnnscriptid=<dnn_script_UUID]
-                        [--datasetid=<dataset_UUID]
+                        [--savetodataset=<dataset_UUID]
 
 Where:
   --modelid | --id  Required parameter that identifies the model to deploy.
@@ -198,7 +198,8 @@ Where:
   --userdnnid Optional parameter specifying the UUID of a user supplied
              (custom) DNN to be used
   --dnnscriptid Optional parameter indicating the UUID of a pre/post
-             processing DNN that should be loaded with the model.   
+  --savetodataset Optional parameter indicating the UUID of a dataset
+             to save inference results.
 
 Deploys the indicated model for inference purposes."""
 
@@ -208,15 +209,15 @@ def deploy(params):
 
     model = params.get("--modelid", "missing_id")
     name = params.get("--name", None)
-    datasetid = params.get("--datasetid", None)
     expectedArgs = {
         '--accel': 'accel_type',
         '--userdnnid': 'userdnn_id',
-        '--dnnscriptid': 'dnnscript_id'
+        '--dnnscriptid': 'dnnscript_id',
+        '--savetodataset': 'save_inference'
     }
     kwargs = translate_flags(expectedArgs, params)
 
-    rsp = server.deployed_models.create(model, datasetid, name, **kwargs)
+    rsp = server.deployed_models.create(model, name, **kwargs)
     if rsp is None:
         reportApiError(server, f"Failure attempting to get model id '{model}'")
     else:

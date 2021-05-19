@@ -23,7 +23,7 @@ class DeployedModels:
     def __init__(self, server):
         self.server = server
 
-    def create(self, modelid, datasetid, name, **kwargs):
+    def create(self, modelid, name, **kwargs):
         """ Deploy a trained model.
 
         :param modelid -- UUID of the model to deploy
@@ -38,7 +38,6 @@ class DeployedModels:
         uri = "/webapis"
         body = {
             "trained_model_id": modelid,
-            "save_inference": datasetid,
             "name": name if name is not None else model["name"],
             "usage": model["usage"]
         }
