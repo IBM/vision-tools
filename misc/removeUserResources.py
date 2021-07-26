@@ -36,7 +36,7 @@ class ResourceGroup:
         self.name = name
         self.title = title                 # for messages
         self.getResourceList = getter      # reference to function to get a group's list of resources
-        self.deleteResourceList = listDeleter  # reference to function to managing deleting a list of resources
+        self.deleteResourceList = listDeleter  # reference to function to manage deleting a list of resources
         self.deleteItem = itemDeleter      # reference to function that deletes a single resource item
         self.userItems = []                # list of user resources for a resource group
 
@@ -57,6 +57,22 @@ def main(params):
     is given to ensure that the removal should proceed.
     A "force" flag is provided to avoid the prompt.
     """
+
+    setupEnvironment()
+
+    resourceGroups = setupResourceGroups()
+    getUserResources(resourceGroups)
+
+    # Abort if there are deployed models.
+    if len(resourceGroups["deployedModels"].userItems) > 0:
+        print(f"ERROR: There are deployed models in the server that prevent removing user resources.")
+        logger.error("There are deployed models preventing the removal of user resources.")
+        exit(3)
+
+    deleteResources(resourceGroups)
+
+
+def setupEnvironment():
     global args
     args = getValidInputs()
     if args is None:
@@ -67,25 +83,6 @@ def main(params):
 
     global user
     user = getUserName()
-
-    resourceGroups = [
-        ResourceGroup("projects", "project groups", mvi.projects.report, singleDelete, mvi.projects.delete),
-        ResourceGroup("datasets", "datasets", mvi.datasets.report, singleDelete, mvi.datasets.delete),
-        ResourceGroup("dlTasks", "training tasks", mvi.dl_tasks.report, singleDelete, mvi.dl_tasks.delete),
-        ResourceGroup("trainedModels", "trained models", mvi.trained_models.report, trainedModelBatchDelete, None),
-        ResourceGroup("deployedModels", "deployed models", mvi.deployed_models.report, singleDelete, mvi.deployed_models.delete),
-        ResourceGroup("bgTasks", "background tasks", getUserBgTasks, bgTaskDelete, None)
-    ]
-
-    getUserResources(resourceGroups)
-
-    # handle case that there is nothing to do.
-    if len(resourceGroups[3].userItems) > 0:
-        print(f"ERROR: There are deployed models in the server that prevent removing user resources.")
-        logger.error("There are deployed models preventing the removal of user resources.")
-        exit(3)
-
-    deleteResources(resourceGroups)
 
 
 def setupLogging(log):
@@ -119,6 +116,21 @@ def setupServer():
         exit(2)
 
 
+def setupResourceGroups():
+    """Setup the resourceGroups object with all resources that need to be examined."""
+    resourceGroups = {
+        "projects": ResourceGroup("projects", "project groups", mvi.projects.report, singleDelete, mvi.projects.delete),
+        "datasets": ResourceGroup("datasets", "datasets", mvi.datasets.report, singleDelete, mvi.datasets.delete),
+        "dlTasks": ResourceGroup("dlTasks", "training tasks", mvi.dl_tasks.report, singleDelete, mvi.dl_tasks.delete),
+        "trainedModels": ResourceGroup("trainedModels", "trained models", mvi.trained_models.report,
+                                       trainedModelBatchDelete, None),
+        "deployedModels": ResourceGroup("deployedModels", "deployed models", mvi.deployed_models.report, singleDelete,
+                                        mvi.deployed_models.delete),
+        "bgTasks": ResourceGroup("bgTasks", "background tasks", getUserBgTasks, bgTaskDelete, None)
+    }
+    return resourceGroups
+
+
 def getUserName():
     """Translate user API key to user name."""
     mvi.server.get(f"/users/{mvi.server.token}")
@@ -129,16 +141,16 @@ def getUserName():
     return mvi.json()["username"]
 
 
-def getUserResources(resourceCategories: ResourceGroup):
+def getUserResources(resourceCategories):
     """ Collects lists of user resources. The resource categories to collect are passed in."""
     print("Collecting user resource information.")
-    for resource in resourceCategories:
+    for _, resource in resourceCategories.items():
         resource.retrieveUserResourceList(user)
         logger.debug(f"""Found {len(resource.userItems)} {resource.title}.""")
 
 
 def userResourceCount(resourceCategories):
-    return sum(len(r.userItems) for r in resourceCategories)
+    return sum(len(r.userItems) for _, r in resourceCategories.items())
 
 
 def getUserBgTasks():
@@ -156,6 +168,8 @@ def deleteResources(resourceCategories):
 
     numberOfResources = userResourceCount(resourceCategories)
     logger.debug(f"deleting {numberOfResources} total resources for user '{user}'.")
+
+    # Do not do anything further if there is nothing to remove.
     if numberOfResources <= 0:
         print(f"No resources found for user '{user}'.")
         logger.debug("Query found no resources to delete.")
@@ -164,7 +178,7 @@ def deleteResources(resourceCategories):
     if not okToRemoveResources(numberOfResources):
         return
 
-    for resource in resourceCategories:
+    for _, resource in resourceCategories.items():
         resource.deleteResourceList(resource)
 
 
@@ -193,20 +207,6 @@ def singleDelete(resource):
         resource.deleteItem(item["_id"])
         if not mvi.rsp_ok():
             print(f"""Failed to delete {resource.name} with id {item["_id"]} -- status code = {mvi.server.status_code()}; {mvi.server.json()}""")
-
-
-def datasetBatchDelete(resource):
-    """Delete a list of datasets using the dataset batch delete API"""
-    print(f"Deleting {len(resource.userItems)} {resource.title}.")
-    if len(resource.userItems) > 0:
-        payload = {
-            "action": "delete",
-            "id_list": [i["_id"] for i in resource.userItems]
-        }
-        logger.debug(f"dataset delete payload = {payload}")
-        mvi.server.post("/datasets/action", json=payload)
-        if not mvi.rsp_ok():
-            print(f"Failed to delete datasets -- status code = {mvi.server.status_code()}; {mvi.server.json()}")
 
 
 def trainedModelBatchDelete(resource):
