@@ -175,17 +175,20 @@ def deleteResources(resourceCategories):
         logger.debug("Query found no resources to delete.")
         return
 
-    if not okToRemoveResources(numberOfResources):
+    if not okToRemoveResources(resourceCategories, numberOfResources):
         return
 
     for _, resource in resourceCategories.items():
         resource.deleteResourceList(resource)
 
 
-def okToRemoveResources(resourceCount):
+def okToRemoveResources(resourceCategories, resourceCount):
     """ Prompts the user to confirm the removal operation."""
     doDelete = False
     if not args.force:
+        print()
+        for _, resource in resourceCategories.items():
+            print(f"""There are {len(resource.userItems)} {resource.title} to remove.""")
         userRsp = input(
             f"\nDo you want to proceed with removing {resourceCount} resources associated with user '{user}'? (y/N): ")
         print()
