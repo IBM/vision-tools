@@ -36,7 +36,9 @@ class MviMongoException(Exception):
 
 class MongoAccessor:
     """ Class to provide a "direct" connection to an MVI Mongo DB instance.
-    Supports connections in standalone and OCP environments depending upon inputs.
+    Supports connections within a cluster and to external OCP clusters depending upon inputs.
+    For local cluster, 'mongoService' and 'creds' must be supplied on input.
+    For external cluster, a 'cluster' object is required to access the external cluster.
     """
 
     def __init__(self, creds=None, mongoService=None, cluster=None):
