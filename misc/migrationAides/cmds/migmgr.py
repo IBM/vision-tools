@@ -487,7 +487,6 @@ def doFileMigration(flist, item):
 
             logging.info(f"Starting file migration ({fileMigrateCmd})")
             setStatus(runningStatus)
-            fileMigrateCmd = ["/usr/bin/ls", filepath]
             filesResult = subprocess.run(fileMigrateCmd)
             logging.debug(f"file migration returned... {filesResult}.")
             result += filesResult.returncode
@@ -530,7 +529,6 @@ def doDbRestore(filePath):
                   os.path.join(filePath)]
 
     logging.info(f"Starting DB Restore command. ({restoreCmd})")
-    restoreCmd = "/usr/bin/ls"
     restoreResult = subprocess.run(restoreCmd)
     logging.debug(f"db restore returned... {restoreResult}.")
 
