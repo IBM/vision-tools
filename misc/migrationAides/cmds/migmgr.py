@@ -70,9 +70,9 @@ class Status:
     RUNNING = "running"
     COMPLETE = "complete"
     FAILED = "failed"
-    FILE_MIGRATION_RUNNING = "files_migration_running"
-    FILE_MIGRATION_COMPLETE = "files_migration_complete"
-    FILE_MIGRATION_FAILED = "files_migration_failed"
+    FILE_MIGRATION_RUNNING = "file_migration_running"
+    FILE_MIGRATION_COMPLETE = "file_migration_complete"
+    FILE_MIGRATION_FAILED = "file_migration_failed"
     ARTIFACT_COLLECTION_RUNNING = "artifact_collection_running"
     ARTIFACT_COLLECTION_COMPLETE = "artifact_collection_complete"
     ARTIFACT_COLLECTION_FAILED = "artifact_collection_failed"
@@ -101,8 +101,9 @@ topLevelCollections = [
     "DLTasks",
     "TrainedModels",
     "DnnScripts",
-    "Datasets",
-    "ProjectGroups"
+    "DataSets",
+    "ProjectGroups",
+    "UserDNNs"
 ]
 
 # Collections that are subordinate to datasets
@@ -179,6 +180,9 @@ def doMigration():
     elif args.projects:
         migrateProjectGroups(args.projects.split(","))
 
+    # TODO: add logic to check for success/failure and report status accordingly
+    setStatus(Status.COMPLETE)
+
 
 def migrateServer():
     flist, dbFile = collectWholeServerArtifacts()
@@ -213,6 +217,8 @@ def collectWholeServerArtifacts():
 
 
 def migrateUsers(userList):
+    """Collects and migrates artifacts associated with the given user."""
+
     with MongoAccessor.MongoAccessor(mongoDbCreds, mongoService=args.sMongoService) as ma:
         for user in userList:
             setStatus(Status.subStatus(Status.ARTIFACT_COLLECTION_RUNNING, user))
@@ -293,34 +299,39 @@ def collectDocumentTreesAndFilePaths(mongo, zipFile, wkDir, collection, query={}
 
     dbCollection = mongo.getMviDatabase()[collection]
 
-    documents = dbCollection.find(query)
-    logging.info(f"Backing up documents from collection '{collection}' matching query '{query}'.")
-    fileName = os.path.join(wkDir, f"{collection}")
-
     pathList = []
-    with open(fileName, "w") as file:
-        file.write("[")
-        i = 0
-        for document in documents:
-            if i > 0:
-                file.write(",")
-                if i % 1000 == 0:
-                    logging.debug(f"{i}")
-            file.write(json.dumps(document, indent=2))
-            if collection == "Datasets":
-                pathList.append(f"{mountPoint}/{document['owner']}/datasets/{document['_id']}")
-                collectDatasetArtifacts(mongo, wkDir, document)
-            elif collection == "TrainedModels":
-                pathList.extend(glob(f"{mountPoint}/{document['owner']}/trained-models/{document['_id']}*"))
-                pathList.extend(glob(f"{mountPoint}/{document['owner']}/trained-models/thumbnails/{document['_id']}*"))
-            elif collection == "DnnScripts":
-                pathList.append(f"{mountPoint}/{document['owner']}/dnn-scripts/{document['_id']}.zip")
-            i += 1
-        file.write("]")
-        logging.info(f"Backed up {i} documents from '{collection}' (query={query}).")
 
-    zipFile.write(fileName)
-    os.remove(fileName)
+    count = dbCollection.count_documents(query)
+    if count > 0:
+        documents = dbCollection.find(query)
+        logging.info(f"Backing up documents from collection '{collection}' matching query '{query}'.")
+        fileName = os.path.join(wkDir, f"{collection}")
+
+        i = 0
+        with open(fileName, "w") as file:
+            file.write("[")
+            for document in documents:
+                if i > 0:
+                    file.write(",")
+                    if i % 1000 == 0:
+                        logging.debug(f"{i}")
+                file.write(json.dumps(document, indent=2))
+                if collection == "DataSets":
+                    pathList.append(f"{mountPoint}/{document['owner']}/datasets/{document['_id']}")
+                    collectDatasetArtifacts(mongo, wkDir, document)
+                elif collection == "TrainedModels":
+                    pathList.extend(glob(f"{mountPoint}/{document['owner']}/trained-models/{document['_id']}*"))
+                    pathList.extend(glob(f"{mountPoint}/{document['owner']}/trained-models/thumbnails/{document['_id']}*"))
+                elif collection == "DnnScripts":
+                    pathList.append(f"{mountPoint}/{document['owner']}/dnn-scripts/{document['_id']}.zip")
+                i += 1
+            file.write("]")
+
+        logging.info(f"Backed up {i} documents from '{collection}' (query={query}).")
+        zipFile.write(fileName, collection)
+        os.remove(fileName)
+    else:
+        logging.info(f"No documents to migrate in '{collection}'.")
 
     return pathList
 
@@ -332,7 +343,7 @@ def collectDatasetArtifacts(mongo, wkDir, dataset):
 
     for collection in secondLevelCollections:
         if collection in dbCollections:
-            saveDatasetRelatedCollectionsToFile(mongo, collection, {"dataset_id": dataset["_id"]})
+            saveDatasetRelatedCollectionsToFile(mongo, wkDir, collection, {"dataset_id": dataset["_id"]})
         else:
             logging.info(f"Skipping collection '{collection}'.")
 
@@ -343,23 +354,28 @@ def saveDatasetRelatedCollectionsToFile(mongo, wkDir, collection, query):
     logging.debug(f"""Saving collection '{collection}' using query '{query}'.""")
 
     dbCollection = mongo.getMviDatabase()[collection]
-    documents = dbCollection.find(query)
-    fileName = os.path.join(wkDir, f"{collection}")
-    prefix = "," if os.path.exists(fileName) else "["
+    count = dbCollection.count_documents(query)
+    i = 0
+    if count > 0:
+        documents = dbCollection.find(query)
+        fileName = os.path.join(wkDir, f"{collection}")
+        prefix = "," if os.path.exists(fileName) else "["
 
-    with open(fileName, "a") as file:
-        i = 0
-        for document in documents:
+        with open(fileName, "a") as file:
+            i = 0
+            for document in documents:
 
-            if i % 1000 == 0:
-                logging.debug(f"{i}")
+                if i > 0 and i % 1000 == 0:
+                    logging.debug(f"{i}")
 
-            file.write(prefix)
-            file.write(json.dumps(document, indent=2))
-            prefix = ","
+                file.write(prefix)
+                file.write(json.dumps(document, indent=2))
+                prefix = ","
 
-            i += 1
-        logging.info(f"Saved {i} documents matching query '{query}' from collection '{collection}'")
+                i += 1
+        logging.info(f"Saved {i} documents matching query '{query}' from collection '{collection}' ({count}).")
+    else:
+        logging.info(f"No documents to migrate for '{collection}' matching '{query}'")
 
 
 def backupSecondLevelCollectionFiles(zipFile, wkdir):
@@ -368,14 +384,17 @@ def backupSecondLevelCollectionFiles(zipFile, wkdir):
     for collection in secondLevelCollections:
         fileName = os.path.join(wkdir, collection)
         if os.path.exists(fileName):
+            logging.debug(f"Closing list for secondary collection '{collection}' ({fileName}).")
             # close the json list in the save file before backing it up in the zipfile.
             with open(fileName, "a") as file:
                 file.write("]")
-            zipFile.write(fileName)
+            zipFile.write(fileName, os.path.basename(fileName))
             os.remove(fileName)
 
 
 def collectProjectGroupArtifacts(mongo, pgid):
+    """Collects all artifacts associated with the given project group.
+     Returns list of files to migrate and the zipfile containing the DB documents to migrate."""
     # Make sure the working collection directory exists
     collectionDir = os.path.join(dbDir, f"""collections/{pgid}-{timestamp}""")
     try:
@@ -413,29 +432,33 @@ def collectProjectGroupArtifacts(mongo, pgid):
 
 def saveProjectGroup(mongo, wkDir, zipfile, pgid):
     """Collects and saves the project group document to the zipfile.
-    Returns the project group document"""
-    pgCollection = mongo.getMviDatabase()["ProjectGroups"]
+    Returns the project group document if it exists."""
+    collection = "ProjectGroups"
+    pgCollection = mongo.getMviDatabase()[collection]
+    query = {"_id": pgid}
+    count = pgCollection.count_documents(query)
+    document = None
+    if count > 0:
+        fileName = os.path.join(wkDir, "ProjectGroups")
 
-    documents = pgCollection.find({"_id": pgid})
-    fileName = os.path.join(wkDir, "ProjectGroups")
-
-    with open(fileName, "w") as file:
-        file.write("[")
-        i = 0
-        if documents.count() > 0:
+        documents = pgCollection.find(query)
+        with open(fileName, "w") as file:
+            file.write("[")
+            i = 0
             document = documents[0]
             file.write(json.dumps(document, indent=2))
-        else:
-            document = None
-        file.write("]")
+            file.write("]")
 
-    zipfile.write(fileName)
-    os.remove(fileName)
+        zipfile.write(fileName, collection)
+        os.remove(fileName)
+    else:
+        logging.info(f"No project group found for id '{pgid}'")
 
     return document
 
 
 def migrateArtifacts(flist, dbfile, item):
+    """Migrates both files and DB documents."""
     logging.info(f"Starting to migrate artifacts for '{item}'. dbfile = '{dbfile}'. Files = '{flist}'.")
 
     doFileMigration(flist, item)
@@ -486,19 +509,14 @@ def doDbMigration(fileName, item):
     DB Migration is 2 steps, backup to a zip file and then restore into the destination cluster.
     Note that collecting artifacts will create the zip file in all cases except a whole server migration."""
 
-    logging.debug("attempting to start DB migration.")
+    logging.debug(f"Starting DB migration for '{item}'.")
 
-    backupCompleteStatus = Status.subStatus(Status.ARTIFACT_COLLECTION_COMPLETE, item)
-    restoreRunningStatus = Status.subStatus(Status.DB_MIGRATION_RUNNING, item)
-    restoreCompleteStatus = Status.subStatus(Status.DB_MIGRATION_COMPLETE, item)
-    restoreFailedStatus = Status.subStatus(Status.DB_MIGRATION_FAILED, item)
-
-    setStatus(restoreRunningStatus)
+    setStatus(Status.subStatus(Status.DB_MIGRATION_RUNNING, item))
     rc = doDbRestore(fileName)
     if rc == 0:
-        setStatus(restoreCompleteStatus)
+        setStatus(Status.subStatus(Status.DB_MIGRATION_COMPLETE, item))
     else:
-        setStatus(restoreFailedStatus)
+        setStatus(Status.subStatus(Status.DB_MIGRATION_FAILED, item))
 
 
 def doDbRestore(filePath):
@@ -511,7 +529,7 @@ def doDbRestore(filePath):
                   "--ocptoken", args.destToken,
                   os.path.join(filePath)]
 
-    logging.info(f"Starting DB Restore ({restoreCmd})")
+    logging.info(f"Starting DB Restore command. ({restoreCmd})")
     restoreCmd = "/usr/bin/ls"
     restoreResult = subprocess.run(restoreCmd)
     logging.debug(f"db restore returned... {restoreResult}.")
@@ -519,7 +537,7 @@ def doDbRestore(filePath):
     if restoreResult.returncode == 0:
         logging.info("DB Restore complete.")
     else:
-        logging.info(f"DB Restore failed ({restoreResult.returncode})")
+        logging.warning(f"DB Restore failed ({restoreResult.returncode})")
 
     return restoreResult.returncode
 
