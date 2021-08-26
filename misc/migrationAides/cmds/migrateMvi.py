@@ -272,6 +272,14 @@ class ClusterConfig:
         """Stringify for logging purposes."""
         return ', '.join("%s: %s" % item for item in vars(self).items())
 
+#--- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# The following classes could be in separate files. They are included
+# in this file to minimize what must be "installed" on a standalone
+# server in order to use this script. The goal is a single file (this file)
+# need be installed/copied onto the standalone server. Therefore the
+# following classes are included in this script rather than being
+# separate files that are imported.
+
 
 class SourceAccess:
     """Base class to access and perform source cluster operations."""
@@ -386,6 +394,13 @@ class SourceAccess:
             json.dump(self.deployment, fp, indent=2)
 
         print(f"Saved deployment definition in '{fileName}'.")
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# StandaloneSource extends the SourceAccess base class for source environments
+# that are standalone kubernetes based. It sets variables for a standalone
+# kubernetes environment and generates a deployment definition for a
+# standalone environment
+# TODO: create a common deployment definition that can be shared and added to for specific environments
 
 
 class StandaloneSource(SourceAccess):
@@ -544,6 +559,14 @@ class StandaloneSource(SourceAccess):
             }
         }
         self._saveDeploymentToFile()
+
+# --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+# OcpSource extends the SourceAccess base class for source environments that are
+# OCP cloud based. It sets variables for an OCP environment and generates a
+# deployment definition for an OCP environment. Note that the deployment
+# definition requirements vary for Gen1 and Gen2 environments. The MVI version
+# will be used to make that determination.
+# TODO: Add support for OCP based source cluster.
 
 
 class OcpSource(SourceAccess):
