@@ -17,6 +17,7 @@
 #
 #  IBM_PROLOG_END_TAG
 import logging
+import re
 import subprocess
 import signal
 import json
@@ -74,20 +75,43 @@ class MongoAccessor:
             return self.mongoDbCreds["userName"], self.mongoDbCreds["password"]
 
         # otherwise get credentials from the cluster
-        cmdArgs = ["oc", "get", "secret", "vision-secrets", "-o", "json"]
-        process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            jsonData = json.loads(stdout.decode('utf-8'))
-            userName = base64.b64decode(jsonData["data"]["mongodb-admin-username"]).decode("utf-8")
-            password = base64.b64decode(jsonData["data"]["mongodb-admin-password"]).decode("utf-8")
-            logging.debug(f"user={userName}, pw={password}")
+        secretName = self._getMVISecretName()
+
+        if secretName is not None:
+            cmdArgs = ["oc", "get", "secret", secretName, "-o", "json"]
+            process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+            if process.returncode == 0:
+                jsonData = json.loads(stdout.decode('utf-8'))
+                userName = base64.b64decode(jsonData["data"]["mongodb-admin-username"]).decode("utf-8")
+                password = base64.b64decode(jsonData["data"]["mongodb-admin-password"]).decode("utf-8")
+                logging.debug(f"user={userName}, pw={password}")
+            else:
+                logging.error(f"Failed to get Mongo info -- {cmdArgs}")
+                logging.error(f"output = {process.stderr}")
+                raise MviMongoException(f"Could not get Mongo connection info.")
         else:
-            logging.error(f"Failed to get Mongo info -- {cmdArgs}")
-            logging.error(f"output = {process.stderr}")
-            raise MviMongoException(f"Could not get Mongo connection info.")
+            msg = "Could not find an expected secretName"
+            logging.error(f"ERROR: {msg}!")
+            raise MviMongoException(f"{msg}!")
 
         return userName, password
+
+    def _getMVISecretName(self):
+        """Searches the secrets in the project and returns the MVI internal secrets name."""
+
+        secretName = None
+        cmdArgs = ["oc", "get", "secrets"]
+        process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
+        for line in process.stdout:
+            string = line.decode('utf-8')
+            logging.debug(string)
+            secret = string.split()[0]
+            if secret == "vision-secrets" or re.search(r"-credentials-internal-visualinspection", secret):
+                secretName = secret
+                logging.debug(f"Matched secret name {secretName}")
+                break
+        return secretName
 
     def getMongoHostName(self):
         """ getMongoHostName returns the host name to use for the mongo connection.

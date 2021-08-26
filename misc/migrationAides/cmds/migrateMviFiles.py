@@ -51,7 +51,18 @@ def main():
             with ClusterAccessor.ClusterAccessor(standalone=not clusterPresent, clusterUrl=args.cluster,
                                                  user=args.ocpUser, password=args.ocpPasswd, token=args.ocpToken,
                                                  project=args.project):
-                rc = migrateFiles()
+                taPod = getTaskAnalysisPodName()
+                if taPod is not None:
+                    if os.path.exists(args.filePath):
+                        if os.path.isfile(args.filePath):
+                            rc = migrateFile(taPod)
+                        else:
+                            rc = migrateDirectory(taPod)
+                    else:
+                        logging.error(f"File '{args.filePath}' does not exist!")
+                        exit(3)
+                else:
+                    exit(3)
         except ClusterAccessor.OcpException as oe:
             print(oe)
             exit(2)
@@ -60,17 +71,55 @@ def main():
     exit(rc)
 
 
-def migrateFiles():
+def getTaskAnalysisPodName():
+    """Gets the name of the task analysis pod on the target server."""
+    taPod = None
     try:
         taPod = ClusterAccessor.ClusterAccessor.getPods("taskanaly")[0]
     except IndexError:
         logging.error("Could not find task analysis pod.")
-        return 3
 
-    cmdArgs = ["oc", "rsync", mountPoint, f"{taPod}:/opt/powerai-vision/data"]
-    logging.info(f"running '{cmdArgs}'")
-    process = subprocess.run(cmdArgs)
-    return process.returncode
+    return taPod
+
+
+def migrateFile(pod):
+    """Migrates a file to the target server."""
+
+    cmd = f"""tar -cf - {args.filePath} | oc exec - i {pod} -- bash -c "(cd /; tar -xvf -)" """
+    logging.debug(f"copying file using ")
+    rc = os.system(cmd)
+    if rc != 0:
+        logging.error(f"")
+    return rc
+
+
+def migrateDirectory(taPod):
+    """Migrates file path provided in args to the target server. File path must be a directory."""
+
+    dirName = ensureParentDirectoryTreeExists(taPod, args.filePath)
+    if dirName is not None:
+        cmdArgs = ["oc", "rsync", args.filePath, f"{taPod}:{dirName}"]
+        logging.info(f"running '{cmdArgs}'")
+        process = subprocess.run(cmdArgs)
+        rc = process.returncode
+        if rc != 0:
+            logging.error(f"ERROR: rsync of '{args.filePath}' failed!")
+    else:
+        logging.error("ERROR: could not ensure parent directory exist!")
+    return rc
+
+
+def ensureParentDirectoryTreeExists(pod, filePath):
+    """Create parent directory tree on the target server."""
+    dirPath = os.path.dirname(args.filePath)
+    cmdArgs = ["oc", "exec", "-i", pod, "--", "/usr/bin/mkdir", "-p", dirPath]
+    logging.info(f"Ensure parent directory exists -- {cmdArgs}")
+    result = subprocess.run(cmdArgs)
+    rc = result.returncode
+    if rc != 0:
+        logging.warning(f"WARNING: Could not unsure 'f{dirPath}' exists in pod '{pod}'.")
+        dirPath = None
+    return dirPath
 
 
 def getInputs():
@@ -118,6 +167,10 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
                         help='Specify logging level (default is "info")')
     parser.add_argument('--logdir', action="store", dest="logFile", type=str, required=False, default="./",
                         help='Optional directory to store logging output. Directory MUST end in a slash ("/")')
+    parser.add_argument('--tar', action="store_true", dest="tarfile", required=False, default=False,
+                             help="Indicates that the 'filePath' represents a tar file instead of a directory.")
+    # Positional Args
+    parser.add_argument('filePath', help="path to the directory (or tar file if '--tar' is specified) to be migrated.")
 
     try:
         results = parser.parse_args()

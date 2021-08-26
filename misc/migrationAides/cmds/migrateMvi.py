@@ -38,19 +38,21 @@ def main():
         reportStatus()
     elif args.migrate:
         startMigration()
-    elif args.cleanup:
+    elif args.cleanup or args.abort:
         cleanupMigration()
     elif args.createDeployment:
         createDeployment()
 
 
 def reportStatus():
-    logger.debug(f"Reporting status on migration '{args.name}'/")
+    logger.debug(f"Reporting status on migration '{args.name}'")
+    srcCluster = StandaloneSource(args.name, clusterCfg.source)
+    srcCluster.getStatus()
 
 
 def startMigration():
     ensureVersionCompatibility()
-    srcCluster = StandaloneSource(clusterCfg.source)
+    srcCluster = StandaloneSource(args.name, clusterCfg.source)
     srcCluster.createDeployment(args, clusterCfg)
     srcCluster.startMigration()
 
@@ -96,11 +98,13 @@ def ensureVersionCompatibility():
 
 def cleanupMigration():
     logger.debug(f"Cleaning up migration '{args.name}'.")
+    srcCluster = StandaloneSource(args.name, clusterCfg.source)
+    srcCluster.cleanupMigration()
 
 
 def createDeployment():
     ensureVersionCompatibility()
-    srcCluster = StandaloneSource(clusterCfg.source)
+    srcCluster = StandaloneSource(args.name, clusterCfg.source)
     srcCluster.createDeployment(args, clusterCfg)
 
 
@@ -111,8 +115,11 @@ def setupEnvironment():
 
     global args
     args = getInputs()
-    setLoggingControls(args.logLevel)
-    setupClusterConfig()
+    if args is not None:
+        setLoggingControls(args.logLevel)
+        setupClusterConfig()
+    else:
+        exit(1)
 
 
 def getInputs():
@@ -145,6 +152,8 @@ and then manually applied to start the migration. This capability can be used fo
                              help="Requests status of the named migration be returned.")
     actionGroup.add_argument('--migrate', action="store_true", dest="migrate", required=False, default=False,
                              help="Initiates a new migration with the given name.")
+    actionGroup.add_argument('--abort', action="store_true", dest="abort", required=False, default=False,
+                             help="Aborts the named migration.")
     actionGroup.add_argument('--cleanup', action="store_true", dest="cleanup", required=False, default=False,
                              help="Cleans up the completed named migration.")
     actionGroup.add_argument('--createDeployment', action="store_true", dest="createDeployment",
@@ -169,7 +178,7 @@ and then manually applied to start the migration. This capability can be used fo
         if results.migrate or results.createDeployment:
             # ensure scope of migration was specified.
             if not results.users and not results.projects and not results.wholeServer:
-                msg = "You must provide one of '--users', '--projects', or '--server' when '--migrate' given."
+                msg = "You must provide one of '--users', '--projects', or '--server' when '--migrate' is given."
                 raise argparse.ArgumentTypeError
         else:
             # Ensure that no migration related args are specified.
@@ -267,28 +276,73 @@ class ClusterConfig:
 class SourceAccess:
     """Base class to access and perform source cluster operations."""
 
-    def __init__(self, srcInfo):
+    def __init__(self, deploymentName, srcInfo):
         self.ocCmd = "oc"
         self.ocFlags = ""
         self.deployment = {}
         self.imageName = "mvi-migration-tool"
+        self.deploymentName = deploymentName
         self.info = srcInfo
 
     def createDeployment(self, params, clusterInfo):
         raise TypeError
 
     def startMigration(self):
-        print(f"""Starting migration under deployment '{self.deployment["metadata"]["name"]}'.""")
-        pass
+        print(f"""Starting migration under deployment '{self.deploymentName}'.""")
+        cmd = [self.ocCmd, f"apply -f{self.getDeploymentFileName()}"]
+        logger.info(subprocess.check_output(cmd))
 
     def getStatus(self):
-        pass
+        pod = self.getMigrationPod()
+        cmd = [self.ocCmd, "exec", "-it", pod, "--", "/usr/local/migration/migmgr.py",
+               "--deployment", self.deploymentName, "--status"]
+        try:
+            cmdstr = " ".join(cmd)
+            logger.debug(f"getting status using '{cmdstr}'")
+            os.system(cmdstr)
+        except Exception as e:
+            print(f"ERROR: failed to get status from the migration container ({e}).", file=sys.stderr)
+
+    def getMigrationPod(self):
+        """Gets the migration pod name for the current deployment. Must be a single pod matched to be successful."""
+        filterStr = f"{self.deploymentName}-"
+        pods = self.getPodNames(filterStr)
+        if len(pods) == 1:
+            logger.debug(f"matched to '{pods[0]}'")
+            return pods[0]
+        else:
+            logger.error(f"Matched {len(pods)} to {filterStr}. matches={pods}")
+        return None
+
+    def getDeploymentFileName(self):
+        return f"""{self.deploymentName}-deployment.json"""
 
     def abortMigration(self):
         self.cleanupMigration()
 
     def cleanupMigration(self):
-        pass
+        print(f"""Deleting deployment '{self.deploymentName}""")
+        cmd = [self.ocCmd, "delete deployment", self.deploymentName]
+        logger.info(subprocess.check_output(cmd))
+
+    def getPodNames(self, filterStr):
+        logger.debug(f"getPodName; filterStr='{filterStr}")
+        cmdArgs = [self.ocCmd, "get", "pods"]
+        pods = []
+
+        process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
+        for line in process.stdout:
+            string = line.decode('utf-8')
+            pod = string.split()[0]
+            if filterStr:
+                if re.search(filterStr, pod):
+                    logger.debug(f"matched pod '{pod}'")
+                    pods.append(pod)
+            else:
+                pods.append(pod)
+        process.wait()
+
+        return pods
 
     def _getMongoServiceName(self):
         """Gets the list of services from the cluster and finds the mongodb service.
@@ -325,7 +379,7 @@ class SourceAccess:
             return "vision-data-pvc"
 
     def _saveDeploymentToFile(self):
-        fileName = f"""{self.deployment["metadata"]["name"]}-deployment.json"""
+        fileName = self.getDeploymentFileName()
         logger.info(f"Saving deployment to '{self.deployment}'")
 
         with open(fileName, 'w+') as fp:
@@ -337,8 +391,8 @@ class SourceAccess:
 class StandaloneSource(SourceAccess):
     """Class for standalone cluster access to data and operations."""
 
-    def __init__(self, srcInfo):
-        super().__init__(srcInfo)
+    def __init__(self, deploymentName, srcInfo):
+        super().__init__(deploymentName, srcInfo)
         self.helmCmd = "/opt/ibm/vision/bin/helm.sh"
         self.ocCmd = "/opt/ibm/vision/bin/kubectl.sh"
         self.imageName = "mvi-migration-tool_ppc64le:1.0.0"
@@ -378,9 +432,9 @@ class StandaloneSource(SourceAccess):
             "apiVersion": "apps/v1",
             "kind": "Deployment",
             "metadata": {
-                "name": params.name,
+                "name": self.deploymentName,
                 "labels": {
-                    "run": params.name,
+                    "run": self.deploymentName,
                     "app": "vision",
                     "chart": helmInfo["chart"],
                     "release": helmInfo["name"],
@@ -390,9 +444,9 @@ class StandaloneSource(SourceAccess):
                 "replicas": 1,
                 "template": {
                     "metadata": {
-                        "name": params.name,
+                        "name": self.deploymentName,
                         "labels": {
-                            "run": params.name,
+                            "run": self.deploymentName,
                             "app": "vision",
                             "chart": helmInfo["chart"],
                             "release": helmInfo["name"]
@@ -401,7 +455,7 @@ class StandaloneSource(SourceAccess):
                     "spec": {
                         "containers": [
                             {
-                                "name": params.name,
+                                "name": self.deploymentName,
                                 "image": self.imageName,
                                 "imagePullPolicy": "IfNotPresent",
                                 "command": [
@@ -410,7 +464,7 @@ class StandaloneSource(SourceAccess):
                                 ],
                                 "args": [
                                     f"""touch /tmp/healthy && """
-                                    f"""/usr/local/migration/migmgr.py --deployment {params.name} """
+                                    f"""/usr/local/migration/migmgr.py --deployment {self.deploymentName} """
                                     f"""--migType {migType} {migrationScope} """
                                     f"""--sMongouser {clusterInfo.source["mongoUser"]} """
                                     f"""--sMongopw {clusterInfo.source["mongoPW"]} """
@@ -418,40 +472,40 @@ class StandaloneSource(SourceAccess):
                                     f"""--dCluster {clusterInfo.destination["clusterUrl"]} """
                                     f"""--dProject {clusterInfo.destination["clusterProject"]} """
                                     f"""--dToken {clusterInfo.destination["clusterToken"]} >&2 && sleep 365d"""
-                                ]
-                            }
-                        ],
-                        "volumeMounts": [
-                            {
-                                "name": "dlaas-data",
-                                "mountPath": "/opt/powerai-vision/data",
-                                "subPath": "data"
-                            }
-                        ],
-                        "resources": {
-                            # No limits for standalone clusters
-                            "limits": {
-                                "cpu": 0,
-                                "memory": "0Gi",
-                            }
-                            # "limits": {
-                            #    "cpu": 8,
-                            #    "memory": "8Gi",
-                            # },
-                            # "requests": {
-                            #    "cpu": 4,
-                            #    "memory": "2Gi",
-                            # }
-                        },
-                        "readinessProbe": {
-                            "exec": {
-                                "command": [
-                                    "cat",
-                                    "/tmp/healthy"
                                 ],
-                                "periodSeconds": 5
+                                "volumeMounts": [
+                                    {
+                                       "name": "dlaas-data",
+                                      "mountPath": "/opt/powerai-vision/data",
+                                     "subPath": "data"
+                                    }
+                                ],
+                                "resources": {
+                                    # No limits for standalone clusters
+                                    "limits": {
+                                        "cpu": 0,
+                                        "memory": "0Gi",
+                                    }
+                                    # "limits": {
+                                    #    "cpu": 8,
+                                    #    "memory": "8Gi",
+                                    # },
+                                    # "requests": {
+                                    #    "cpu": 4,
+                                    #    "memory": "2Gi",
+                                    # }
+                                },
+                                "readinessProbe": {
+                                    "exec": {
+                                        "command": [
+                                            "cat",
+                                            "/tmp/healthy"
+                                        ],
+                                    },
+                                    "periodSeconds": 5
+                                }
                             }
-                        },
+                        ],
                         "volumes": [
                             {
                                 "name": "dlaas-data",
@@ -484,7 +538,7 @@ class StandaloneSource(SourceAccess):
                 },
                 "selector": {
                     "matchLabels": {
-                        "run": f"{params.name}"
+                        "run": f"{self.deploymentName}"
                     }
                 }
             }

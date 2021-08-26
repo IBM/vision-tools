@@ -53,6 +53,7 @@ were given on input, each user (or project group) is migrated independent of the
 import argparse
 import os
 import os.path
+import time
 from glob import glob
 import json
 import subprocess
@@ -146,7 +147,7 @@ def createWorkDirs(deploymentName):
     import pathlib
     global workDir
     workDir = f"{mountPoint}/logs/migrations/{deploymentName}"
-    print(f"creating workdir '{workDir}'", file=sys.stderr)
+    logging.info(f"creating workdir '{workDir}'", file=sys.stderr)
     pathlib.Path(workDir).mkdir(parents=True, exist_ok=True)
 
     global statusDir
@@ -462,7 +463,8 @@ def migrateArtifacts(flist, dbfile, item):
     logging.info(f"Starting to migrate artifacts for '{item}'. dbfile = '{dbfile}'. Files = '{flist}'.")
 
     doFileMigration(flist, item)
-    doDbMigration(dbfile, item)
+    if args.migType != "files":
+        doDbMigration(dbfile, item)
 
 
 def doFileMigration(flist, item):
@@ -475,6 +477,8 @@ def doFileMigration(flist, item):
     failedStatus = Status.subStatus(Status.FILE_MIGRATION_FAILED, item)
 
     logging.info(f"Preparing for File Migration of '{item}' ({MIGRATE_MVI_FILES_CMD})")
+    time.sleep(1)   # ensure previous status has been committed to disk.
+    setStatus(runningStatus)
     result = 0
     for filepath in flist:
         if os.path.exists(filepath):
@@ -486,19 +490,18 @@ def doFileMigration(flist, item):
                               filepath]
 
             logging.info(f"Starting file migration ({fileMigrateCmd})")
-            setStatus(runningStatus)
             filesResult = subprocess.run(fileMigrateCmd)
             logging.debug(f"file migration returned... {filesResult}.")
             result += filesResult.returncode
-
-            if result == 0:
-                logging.info("File migration completed.")
-                setStatus(completeStatus)
-            else:
-                logging.info(f"File migration of '{item}' failed ({filesResult.returncode})")
-                setStatus(failedStatus)
         else:
             logging.info(f"file path '{filepath}' does not exist; ignoring it.")
+
+    if result == 0:
+        logging.info("File migration completed.")
+        setStatus(completeStatus)
+    else:
+        logging.info(f"File migration of '{item}' failed ({filesResult.returncode})")
+        setStatus(failedStatus)
 
     return
 
@@ -510,6 +513,7 @@ def doDbMigration(fileName, item):
 
     logging.debug(f"Starting DB migration for '{item}'.")
 
+    time.sleep(1)  # ensure previous status has been committed to disk.
     setStatus(Status.subStatus(Status.DB_MIGRATION_RUNNING, item))
     rc = doDbRestore(fileName)
     if rc == 0:
@@ -605,6 +609,8 @@ not be called directly by a user. As such flags can be terse.
                         help="The destination cluster URL (for login purposes). Must be an OCP cluster.")
     parser.add_argument('--dToken', action="store", dest="destToken", type=str, required=False,
                         help="API Token for destination OCP cluster admin user.")
+    parser.add_argument('--dVersion', action="store", dest="destVersion", type=str, required=False,
+                        help="The version of the target MVI installation.")
 
     # Source cluster info
     parser.add_argument('--sCluster', action="store", dest="srcCluster", type=str, required=False,
