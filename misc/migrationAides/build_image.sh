@@ -58,7 +58,7 @@ then
 fi
 
 ARCH=$(uname -m)
-IMAGE_NAME="mvi-migration_${ARCH}"
+IMAGE_NAME="mvi-migration-tool_${ARCH}"
 
 mkdir -p "${WORK_DIR}"
 cd "${WORK_DIR}"

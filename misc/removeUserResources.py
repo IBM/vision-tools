@@ -220,7 +220,7 @@ def trainedModelBatchDelete(resource):
             "action": "delete",
             "model_list": [i["_id"] for i in resource.userItems]
         }
-        mvi.server.post("/trained_models/action", json=payload)
+        mvi.server.post("/trained-models/action", json=payload)
         if not mvi.rsp_ok():
             print(f"Failed to delete trained models -- status code = {mvi.server.status_code()}; {mvi.server.json()}")
 

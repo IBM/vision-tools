@@ -75,7 +75,7 @@ class ClusterAccessor:
         process = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         if process.returncode != 0:
-            logging.error(f"Failed to login to cluster {cmdArgs}")
+            logging.error(f"Failed to set OCP Project {cmdArgs}")
             logging.error(f"output = {stderr.decode('utf-8')}")
             raise OcpException(f"Failed to connect to project {self.project}")
 
