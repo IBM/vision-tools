@@ -62,7 +62,8 @@ def ensureVersionCompatibility():
     This routine expect "semver" strings like "V.R.F-extra", and does a numeric comparison of the "V.R.F" parts."""
 
     if "mviUrl" not in clusterCfg.source or "mviUrl" not in clusterCfg.destination:
-        logger.warning("Cannot validate MVI versions because at least one is missing from the cluster config file.")
+        logger.warning("Cannot validate MVI versions because at least one on 'mviUrl' attribute "\
+                       "is missing from the cluster config file.")
         return
 
     if clusterCfg.source["mviUrl"] == clusterCfg.destination["mviUrl"]:
