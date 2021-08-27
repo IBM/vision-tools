@@ -61,6 +61,10 @@ def ensureVersionCompatibility():
     """Ensure that the MVI servers are different and that the migration is not migrating to a lower version.
     This routine expect "semver" strings like "V.R.F-extra", and does a numeric comparison of the "V.R.F" parts."""
 
+    if "mviUrl" not in clusterCfg.source or "mviUrl" not in clusterCfg.destination:
+        logger.warning("Cannot validate MVI versions because at least one is missing from the cluster config file.")
+        return
+
     if clusterCfg.source["mviUrl"] == clusterCfg.destination["mviUrl"]:
         print(f"Error: Source and destination MVI URL cannot be the same. Check '{args.configFile}'.",
               file=sys.stderr)
@@ -297,7 +301,7 @@ class SourceAccess:
 
     def startMigration(self):
         print(f"""Starting migration under deployment '{self.deploymentName}'.""")
-        cmd = [self.ocCmd, f"apply -f{self.getDeploymentFileName()}"]
+        cmd = [self.ocCmd, "apply", "-f", self.getDeploymentFileName()]
         logger.info(subprocess.check_output(cmd))
 
     def getStatus(self):
@@ -356,7 +360,7 @@ class SourceAccess:
         """Gets the list of services from the cluster and finds the mongodb service.
         NOTE: The search if for a service containing the string '-mongodb'."""
         try:
-            svcs = json.loads(subprocess.check_output([self.ocCmd, self.ocFlags, "-o json get services"]))
+            svcs = json.loads(subprocess.check_output([self.ocCmd, self.ocFlags, "-o", "json", "get", "services"]))
         except json.JSONDecodeError as de:
             msg = f"ERROR: Could not get list of services from source cluster -- {de}"
             logger.error(msg)
@@ -373,7 +377,7 @@ class SourceAccess:
         """Gets the PVC name from the source cluster.
         NOTE: the method expects only 1 PVC to exist in the cluster."""
         try:
-            pvcs = json.loads(subprocess.check_output([self.ocCmd, self.ocFlags, "-o json get pvc"]))
+            pvcs = json.loads(subprocess.check_output([self.ocCmd, self.ocFlags, "-o", "json", "get", "pvc"]))
         except json.JSONDecodeError as de:
             msg = f"ERROR: Could not get list of PVCs from source cluster -- {de}"
             logger.error(msg)
@@ -415,7 +419,7 @@ class StandaloneSource(SourceAccess):
 
     def _collectHelmInfo(self):
         try:
-            helmInfo = json.loads(subprocess.check_output([self.helmCmd, "-o json list"]))
+            helmInfo = json.loads(subprocess.check_output([self.helmCmd, "-o", "json", "list"]))
         except json.JSONDecodeError as de:
             msg = f"ERROR: Could not get list of helm info from source cluster -- {de}"
             logger.error(msg)
