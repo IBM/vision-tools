@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 #
 # Copyright 2021 IBM International Business Machines Corp.
