@@ -19,14 +19,12 @@
 #  IBM_PROLOG_END_TAG
 
 """
-This script will backup a Mongod DB. It is designed to work with pre-8.0.0
+This script will backup a MongoDB. It is designed to work with pre-8.0.0
 version of MVI (pre-MAS) as well as post 8.0.0.  The difference is in the
 way the connection is made to Mongo.
 
 With pre-8.0.0, the script requires
-  1. An SSH tunnel has been establish to the MVI mongoDB pod
-     (and is still active when this script is run).
-  2. The mongoDB login credentials are provided as parameters to this script.
+  1. The mongoDB login credentials are provided as parameters to this script.
      The presence (or absence) of these creds is used to determine whether
      the script is backing a pre-8.0.0 MVI MongoDB or not.
 
