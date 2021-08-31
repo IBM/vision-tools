@@ -58,7 +58,8 @@ then
 fi
 
 ARCH=$(uname -m)
-IMAGE_NAME="mvi-migration-tool_${ARCH}"
+TAG="${TAG}_${ARCH}"
+IMAGE_NAME="bcarl/mvi-migration"
 
 mkdir -p "${WORK_DIR}"
 cd "${WORK_DIR}"
@@ -74,5 +75,5 @@ cp -p "${ROOT_DIR}/Dockerfile" .
 # Build release package image
 docker build -t ${IMAGE_NAME}:${TAG} -f Dockerfile .
 
-docker save ${IMAGE_NAME}:${TAG} > "${IMAGE_NAME}:${TAG}"
+docker save ${IMAGE_NAME}:${TAG} > "mvi-migration:${TAG}"
 cd "${ROOT_DIR}"
