@@ -41,11 +41,16 @@ mongoDbCreds = None
 args = {}
 
 collections = MongoAccessor.collections
+fixUpMap = {}
 
 
 def main():
     global args
     args = getInputs()
+
+    # The fixUpMap must be initialized in code so that the reference functions have been seen by the parser
+    global fixUpMap
+    fixUpMap = {"TrainedModels": fixUpTrainedModel}
 
     if args is not None:
         setLoggingControls(args.logLevel)
@@ -101,26 +106,36 @@ def restoreCollection(mongo, zipArchive, zippedFileName, collection):
         numberOfItems = len(jsonData)
         inserted = sliceSize
         dbCollection = mongo.getMviDatabase()[collection]
+        fixUpNeeded = fixUpRequired(collection)
 
         logging.info(f"Restoring {numberOfItems}...")
         while sliceStart < numberOfItems:
-            logging.debug(f"working with slice {sliceStart}-{sliceEnd}.")
-            # Only do a complete slice if we have saved at least 50 consecutive
-            # documents without a failure.
-            if inserted >= 50:
-                try:
-                    dbCollection.insert_many(jsonData[sliceStart:sliceEnd])
-                    inserted = sliceSize
-                except pymongo.errors.BulkWriteError:
-                    # BulkWriteError usually indicates DuplicateKeyError, in which case MongoDB
-                    # stops processing. So fallback to inserting individual documents where we
-                    # can catch duplicate keys and continue through the slice.
-                    inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
-            else:
+            logging.info(f"working with slice {sliceStart}-{sliceEnd}.")
+
+            if fixUpNeeded:
+                # Collections requiring "fix ups" must load documents individually.
                 inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
-            #inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
+            else:
+                # Only bulk load a complete slice if we have saved at least 50 consecutive
+                # documents without a failure.
+                if inserted >= 50:
+                    try:
+                        dbCollection.insert_many(jsonData[sliceStart:sliceEnd])
+                        inserted = sliceSize
+                    except pymongo.errors.BulkWriteError:
+                        # BulkWriteError usually indicates DuplicateKeyError, in which case MongoDB
+                        # stops processing. So fallback to inserting individual documents where we
+                        # can catch duplicate keys and continue through the slice.
+                        inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
+                else:
+                    inserted = insertDocuments(dbCollection, collection, jsonData[sliceStart:sliceEnd])
             sliceStart = sliceEnd
             sliceEnd += sliceSize
+
+
+def fixUpRequired(collectionName):
+    """Determines if the indicated collection requires migration fix ups."""
+    return collectionName in fixUpMap.keys()
 
 
 def insertDocuments(dbCollection, collectionName, documents):
@@ -128,10 +143,13 @@ def insertDocuments(dbCollection, collectionName, documents):
     can be caught, reported, and moved past. Count the number of consecutive successful saves
     and report that number back to the caller."""
 
+    fixUpNeeded = fixUpRequired(collectionName)
     consecutiveInserts = 0
-    logging.info("Falling back to individual document insertion to handle duplicate keys.")
+    logging.info("Restoring individual documents, which will handle duplicate keys and document fix ups.")
     for doc in documents:
         try:
+            if fixUpNeeded:
+                fixUpMap[collectionName](doc)
             dbCollection.insert(doc)
             consecutiveInserts += 1
         except pymongo.errors.DuplicateKeyError:
@@ -139,6 +157,17 @@ def insertDocuments(dbCollection, collectionName, documents):
             consecutiveInserts = 0
 
     return consecutiveInserts
+
+
+def fixUpTrainedModel(doc):
+    """Fixes up a trained model document.
+    The only fix required presently is for the 'thumbnail_path' attribute."""
+
+    try:
+        if doc["thumbnail_path"].startswith("uploads/"):
+            doc["thumbnail_path"].replace("upload/", "/opt/powerai-vision/data/", 1)
+    except KeyError as ke:
+        logging.info(f"fixUpTrainedModel: Could not find 'thumbnail_path', in trained model '{doc['_id']}'.")
 
 
 def getInputs():
