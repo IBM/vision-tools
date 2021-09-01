@@ -53,7 +53,7 @@ The startedge.sh script will display the URL to access the Web UI. To login, the
 **Pre-Install**
 - Storage configuration
   - When run at the full capacity, an MVIE system will produce significant volumes of image files and metadata. This volume will be determined by the compute resources available on the system so there is no single storage configuration that can be recommended for all deployments, but the following are general recommendations for storage layout:
-    - The MVIE \<install root> should be located on a different storage volume than the one that docker will use. EG docker typically stores things under /var so the MVIE root should be located in a different volume.
+    - The MVIE `<install root>` should be located on a different storage volume than the one that docker will use. EG docker typically stores things under `/var` so the MVIE root should be located in a different volume.
     - The database directories (`<install root>/volume/run/psdata`, `<install root>/volume/run/pstbspc`, and `<install root>/volume/run/pgbackrest`) should be located on different volumes to prevent a single storage device failure from affecting both transactional data and database backups
 
 **Pre or Post Install**
@@ -99,7 +99,7 @@ The valid logging levels are:
 |PANIC|This level provides information when events that would normally cause a system crash occur. The MVIE containers implement panic recovery where possible, so the system processes should restart automatically but whenever events of this severity occur, they should be addressed.
 
 ### Development Mode
-Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.properties` will start the vision-edgecontroller container in development mode. When started in this mode:
+Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.properties` will start the vision-edge-controller container in development mode. When started in this mode:
 - Swagger documentation for the controller's REST API is enabled at https://`<host name>`/swagger/index.html
 - Additional configuration info is displayed in the controller logs (DEBUG logging level must also be enabled). Since the controller gets configuration information from (in order of decreasing precedence):
   - environment variables set in the docker run command for the controller in the startedge.sh script
