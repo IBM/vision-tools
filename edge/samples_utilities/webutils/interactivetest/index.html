@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IBM Maximo Visual Inspection</title>
+    <script src="interactive.js"></script>
+</head>
+
+<body onload="Init();"><noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root">
+        <label for="user">User:</label>
+        <input type="text" id="user" name="user">
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password">
+        <button type="button" onclick="Login();">Login</button><br>
+        <label for="inspectionUUID">Inspection UUID:</label>
+        <input type="text" id="inspectionUUID" name="inspectionUUID"><br>
+        <label for="triggerInterval">Trigger Interval (ms):</label>
+        <input type="text" id="triggerInterval" name="triggerInterval" value="1000"><br>
+        <button type="button" onclick="Start();">Start</button>
+        <button type="button" onclick="Stop();">Stop</button>
+        <button type="button" onclick="triggerEvents(false);">Trigger</button>
+        <button type="button" onclick="triggerEvents(true);">Trigger w/ Rules</button>
+        <button type="button" onclick="startTriggerEvents();">Loop Trigger</button>
+        <button type="button" onclick="stopTriggerEvents();">StopLoop</button><br>
+        <canvas id="thecanvas" width="400" height="300"></canvas><br>
+        <textarea id="status" name="status" rows="20" cols="80"></textarea>
+        
+    </div>
+</body>
+
+</html>

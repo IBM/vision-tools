@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IBM Maximo Visual Inspection</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="batchtest.css">
+    <script src="batchactions.js"></script>
+</head>
+
+<body><noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root">
+        <div class="spin" id="spin" style="display:none"></div>
+        <label for="user">User:</label>
+        <input type="text" id="user" name="user" value="masadmin">
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" value="VisionP@ssw0rd">
+        <button type="button" class="button" onclick="Login();">Login</button>
+        <button type="button" class="button" onclick="Logout();">Logout</button><br>
+        <hr>
+        <button type="button" class="button" onclick="GetInspections();">Refresh</button><br>
+        <div id="inspections">
+            <table id="inspectiontable" class="utiltable">
+                <tr>
+                    <th>Name</th>
+                    <th>Images</th>
+                    <th>Data</th>
+                    <th>Pass</th>
+                    <th>Fail</th>
+                    <th>Inconclusive</th>
+                    <th>Alerts</th>
+                    <th>Delete</th>
+                    <th>Reassign</th>
+                    <th>Get FilterData</th>
+                </tr>
+            </table>
+        </div>
+        <hr>
+        <button type="button" class="button" onclick="clearStatus();">Clear</button><br>
+        <textarea id="status" name="status" rows="40" cols="120"></textarea>
+        <div id="progressModal" class="modal">
+            <div class="modal-content">
+                <span id="closeProgress" class="close">&times;</span>
+                <div id="progressMessage"></div>
+                <button type="button" class="button" id="validated" onclick="hideprogress();">OK</button>
+              </div>
+        </div>
+    </div>
+</body>
+
+</html>
