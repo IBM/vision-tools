@@ -2,7 +2,7 @@
 
 This folder hierarchy contains resources for Maximo Visual Inspection Edge (MVIE).
 
-MVIE is designed to bring the power of AI models trained with MVI to the edge as a self-contained solution that can run on edge nodes_ anything from servers to laptops to devices such as an nVidia Jetson or a Raspberry Pi.
+MVIE is designed to bring the power of AI models trained with MVI to the edge as a self-contained solution that can run on edge nodes (anything from servers to laptops to devices such as an nVidia Jetson or a Raspberry Pi).
 
 Edge nodes with GPUs can run models locally. For devices without GPUs, Edge can send inference requests to an MVI server or run the models on the CPU if lower performance is tolerable.
 
