@@ -120,3 +120,4 @@ Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.
 ### CPU Mode
 By default, the vision-edge-dle container will not process inferences if there is no GPU on the edge node. Enabling CPU Mode will allow the DLE to run models on the CPU, which will run much slower than on GPU.
  To enable CPU Mode, set `DLE_ENABLE_CPU_FALLBACK=TRUE` in the vision-edge.properties file.
+> **Note** the controller must be started in Development Mode to allow models to be deployed from the UI in CPU Mode.
