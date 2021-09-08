@@ -1,7 +1,7 @@
 # IBM Maximo Visual Inspection Edge Installation on NVIDIA Jetson Devices
 
 ## Installation
-Installation on Jetons devices follows the [basic inception process](inception_internals.md) with the following deltas:
+Installation on Jetson devices follows the [basic inception process](inception_internals.md) with the following deltas:
 
 - `nvidia docker` does not need to be installed
 - The `nvidia-smi` command is not available
