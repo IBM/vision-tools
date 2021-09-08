@@ -61,6 +61,7 @@ ARCH=$(uname -m)
 TAG="${TAG}_${ARCH}"
 IMAGE_NAME="bcarl/mvi-migration"
 
+rm -rf "${WORK_DIR}"
 mkdir -p "${WORK_DIR}"
 cd "${WORK_DIR}"
 
