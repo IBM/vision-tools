@@ -3,6 +3,8 @@
 Inception is the process by which MVIE is installed. In the most simple deployments this process reduces user input to 2 commands but for a typical production deployment several other steps will be required. There are also a number of non-default configurations that cannot be changed from the UI. This document presents the basic inception process and additional changes that might be desired in different scenarios.
 
 ## Inception Basics
+
+>**Note** MVI Edge is officially supported on x86 and PPCLE servers running Ubuntu or RedHat Enterprise Linux, but it can be run on any platform that supports a linux shell and docker. For information on unsupported platforms, see the [Unsupported Platforms](#Unsupported-Platforms) section *after* reading this section.
 <details>
   <summary>Click to expand</summary>
 
@@ -29,7 +31,7 @@ In the simplest case, MVIE is installed as follows:
     - This will pull the inception image and run it.
     - The inception container will 
       - create the required sub-directories under the \<install root> with the required ownership and permissions.
-        > The userid and groupid are the ones that are used internally by all the MVIE Service containers. These will be 900:9999 in the host OS. Within the containers the user and groupnames are both `visionedge`
+        > The userid and groupid are the ones that are used internally by all the MVIE Service containers. These will be 900:9999. Within the containers the user and group names are both `visionedge`. A common practice is to create the `visionedge` user and group in the host os so owner and group are displayed in a more user-friendly manner. If this is done, the user *must* have the userid `900` and the group *must* have the groupid `9999`
       - populate sub-directories with scripts, templates, and properties files
 
 5. User runs the startedge.sh script
@@ -38,7 +40,6 @@ In the simplest case, MVIE is installed as follows:
     ```
     - This will:
       - display the license agreement, which the user must accept to continue
-        > NOTE on Macs, the `locale` command does not provide the locale name, which will cause the license acceptance script to fail. This can be worked around by commenting out the line `source $HOST_SERVICE_ROOT/bin/license.sh` in the startedge.sh script.
       - pull the 3 MVIE service images
       - generate certificates for the server
       - initialize the database
@@ -110,6 +111,8 @@ The valid logging levels are:
 
 ### Development Mode
 Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.properties` will start the vision-edge-controller container in development mode. When started in this mode:
+- By default the UI will not allow deployment of models locally on systems with no GPU. In Development mode, models can be deployed locally when the system has no GPU.
+  >**Note** The DLE container must be started in CPU Mode to deploy models with no GPU.
 - Swagger documentation for the controller's REST API is enabled at https://`<host name>`/swagger/index.html
 - Additional configuration info is displayed in the controller logs (DEBUG logging level must also be enabled). Since the controller gets configuration information from (in order of decreasing precedence):
   - environment variables set in the docker run command for the controller in the startedge.sh script
@@ -127,8 +130,20 @@ Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.
   - true if set in a configuration file
   - true if setting equals the default value
 
-### CPU Mode
+### CPU Mode - Local Inference with No GPU
 By default, the vision-edge-dle container will not process inferences if there is no GPU on the edge node. Enabling CPU Mode will allow the DLE to run models on the CPU, which will run much slower than on GPU.
  To enable CPU Mode, set `DLE_ENABLE_CPU_FALLBACK=TRUE` in the vision-edge.properties file.
 > **Note** the controller must be started in Development Mode to allow models to be deployed from the UI in CPU Mode.
+</details>
+
+## Unsupported Platforms
+<details>
+  <summary>Click to expand</summary>
+As documented in the [Inception Basics](*Incpetion-Basics) section above, the installation of MVI Edge is a process of running the inception image as a "run-once" docker container that sets up the environment, and running the `startedge.sh` script to complete the installation. Any platform that can support docker and a linux shell to run the script are suitable for installation.
+
+However, there are deltas from the standard installation procedure for different platforms. The deltas for the most common are documented separately:
+
+- [MacOS](MacOS.md)
+- [Windows](Windows.md)
+- [NVIDIA Jetson](NVIDIA_Jetson.md)
 </details>
