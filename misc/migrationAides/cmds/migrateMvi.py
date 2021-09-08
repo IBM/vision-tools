@@ -293,7 +293,7 @@ class SourceAccess:
         self.ocCmd = "oc"
         self.ocFlags = ""
         self.deployment = {}
-        self.imageName = "mvi-migration-tool"
+        self.imageName = "bcarl/mvi-migration"
         self.deploymentName = deploymentName
         self.info = srcInfo
 
@@ -415,7 +415,7 @@ class StandaloneSource(SourceAccess):
         super().__init__(deploymentName, srcInfo)
         self.helmCmd = "/opt/ibm/vision/bin/helm.sh"
         self.ocCmd = "/opt/ibm/vision/bin/kubectl.sh"
-        self.imageName = "mvi-migration-tool_ppc64le:1.0.0"
+        self.imageName = "docker.io/bcarl/mvi-migration:1.0.0_ppc64le"
         logger.debug(f"StandaloneSource: {str(self.__dict__)}")
 
     def _collectHelmInfo(self):
