@@ -165,7 +165,8 @@ def fixUpTrainedModel(doc):
 
     try:
         if doc["thumbnail_path"].startswith("uploads/"):
-            doc["thumbnail_path"].replace("upload/", "/opt/powerai-vision/data/", 1)
+            doc["thumbnail_path"] = doc["thumbnail_path"].replace("uploads/", "/opt/powerai-vision/data/", 1)
+            logging.debug(f"Fixed trained-model thumbnail_path -- f{doc['thumbnail_path']}")
     except KeyError as ke:
         logging.info(f"fixUpTrainedModel: Could not find 'thumbnail_path', in trained model '{doc['_id']}'.")
 
