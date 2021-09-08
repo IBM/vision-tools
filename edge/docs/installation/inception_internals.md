@@ -2,7 +2,10 @@
 
 Inception is the process by which MVIE is installed. In the most simple deployments this process reduces user input to 2 commands but for a typical production deployment several other steps will be required. There are also a number of non-default configurations that cannot be changed from the UI. This document presents the basic inception process and additional changes that might be desired in different scenarios.
 
-### Inception Basics
+## Inception Basics
+<details>
+  <summary>Click to expand</summary>
+
 In the simplest case, MVIE is installed as follows:
 1. The [Installation pre-requisites](https://www.ibm.com/docs/en/maximo-vi/8.3.0?topic=edge-planning) are provided
 2. User selects an `<install root>` directory where they want to install MVIE. This directory must be created before proceeding with the inception process. 
@@ -48,8 +51,11 @@ In the simplest case, MVIE is installed as follows:
 The system is now up and running. 
 
 The startedge.sh script will display the URL to access the Web UI. To login, the default userid and password are `masadmin` and `VisionP@ssw0rd`.
-
+</details>
+   
 ## Operational Considerations
+<details>
+  <summary>Click to expand</summary>
 **Pre-Install**
 - Storage configuration
   - When run at the full capacity, an MVIE system will produce significant volumes of image files and metadata. This volume will be determined by the compute resources available on the system so there is no single storage configuration that can be recommended for all deployments, but the following are general recommendations for storage layout:
@@ -71,8 +77,12 @@ The startedge.sh script will display the URL to access the Web UI. To login, the
     }
     ```
     - Restart the docker daemon `systemctl docker restart`
-
+</details>
+   
 ## Non-default Configurations
+<details>
+  <summary>Click to expand</summary>
+
 The basic flow of configuration settings is from the `<install root>/volume/run/var/config/vision-edge.properties` file to the startedge.sh script to the service containers. Property settings in the properties file are available to the startedge.sh script and may be passed as environment variables in the docker  run commands that start the containers. 
 
 > NOTE Modifications to the `<install root>/volume/run/var/config/vision-edge.properties` and `<install root>/volume/run/var/config/controller.json` files will also be picked up directly by the vision-edge-controller container but can be overridden by environment variables passed to the container in the startedge.sh script.
@@ -121,3 +131,4 @@ Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.
 By default, the vision-edge-dle container will not process inferences if there is no GPU on the edge node. Enabling CPU Mode will allow the DLE to run models on the CPU, which will run much slower than on GPU.
  To enable CPU Mode, set `DLE_ENABLE_CPU_FALLBACK=TRUE` in the vision-edge.properties file.
 > **Note** the controller must be started in Development Mode to allow models to be deployed from the UI in CPU Mode.
+</details>
