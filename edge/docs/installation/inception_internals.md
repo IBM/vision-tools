@@ -40,7 +40,6 @@ In the simplest case, MVIE is installed as follows:
     ```
     - This will:
       - display the license agreement, which the user must accept to continue
-        > NOTE on Macs, the `locale` command does not provide the locale name, which will cause the license acceptance script to fail. This can be worked around by commenting out the line `source $HOST_SERVICE_ROOT/bin/license.sh` in the startedge.sh script.
       - pull the 3 MVIE service images
       - generate certificates for the server
       - initialize the database
@@ -135,10 +134,11 @@ Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.
 By default, the vision-edge-dle container will not process inferences if there is no GPU on the edge node. Enabling CPU Mode will allow the DLE to run models on the CPU, which will run much slower than on GPU.
  To enable CPU Mode, set `DLE_ENABLE_CPU_FALLBACK=TRUE` in the vision-edge.properties file.
 > **Note** the controller must be started in Development Mode to allow models to be deployed from the UI in CPU Mode.
-<<<<<<< HEAD
+</details>
 
 ## Unsupported Platforms
-
+<details>
+  <summary>Click to expand</summary>
 As documented in the [Inception Basics](*Incpetion-Basics) section above, the installation of MVI Edge is a process of running the inception image as a "run-once" docker container that sets up the environment, and running the `startedge.sh` script to complete the installation. Any platform that can support docker and a linux shell to run the script are suitable for installation.
 
 However, there are deltas from the standard installation procedure for different platforms. The deltas for the most common are documented separately:
@@ -146,6 +146,4 @@ However, there are deltas from the standard installation procedure for different
 - [MacOS](MacOS.md)
 - [Windows](Windows.md)
 - [NVIDIA Jetson](NVIDIA_Jetson.md)
-=======
 </details>
->>>>>>> fb92d2bb2d2c988ea9d7c0084d2265112a7ea006
