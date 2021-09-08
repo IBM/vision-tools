@@ -4,7 +4,7 @@ Installation on Windows 10 follows the [basic inception process](inception_inter
 
 - In order to run the `startedge.sh` script a linux shell is required. The Windows Subsystem for Linux 2 (WSL2) is recommended but it has been reported that a successful installation was also performed using Mingw-w64. This document will target WSL2.
 
-- Docker is required. Docker Desktop is most commonly used but it is also possible to run Docker directly in WSL2. In either case, the Linux shell that you install into must support stnard docker cli commands such as `docker run`.
+- Docker is required. Docker Desktop is most commonly used but it is also possible to run Docker directly in WSL2. In either case, the Linux shell that you install into must support standard docker cli commands such as `docker run`.
 
 ## Installing WSL2 and Docker Desktop
 
