@@ -18,6 +18,26 @@ The following base requirements were brought forth:
  2. The migration must preserve all resource IDs so that all resource associations are maintained.
  3. The migration must allow for the consolidation of multiple standalone servers into a single OCP instance.
 
+### Version 2 Requirements
+
+The primary requirement for version 2 is that migrations must be able to be performed at a level less than
+an entire server. All of the previous requirements mentioned above still apply. The level of granularity
+for "server subset" migrations are:
+ 1. User Level
+ 2. Project Group Level
+
+#### User Level Migrations
+
+A user migration means that all resources (or artifacts) associated with a specific user must be migrated. 
+This means all project groups, datasets, trained models, DL tasks (training tasks), custom models, and 
+custom DNN scripts. Any deployed models will not be migrated. 
+
+#### Project Group Migrations
+
+A project group migration means that all resources (or artifacts) associated with a specific project group must be
+migrated. This means all project groups, datasets, trained models, and DL tasks (training tasks).
+Any deployed models will not be migrated.
+
 ## High Level Design
 
 MVI holds its resources in two different places -- the local file system and an internal database.
@@ -35,12 +55,9 @@ second step for the database.
 
  2. Resource owner information must be preserved, but user creation is outside the scope of the migration tool.
 
- 3. It should be possible to perform either step without performing the other step. This assumption is to
-    facilitate those users that have a way to move storage from the standalone environment into the OCP 
-    environment.
-    This could work the other way as well. It should be possible to move the file system contents before the
-    sever move is to actually occur. Then when the actual move/transition is to occur, a smaller file move could
-    be done that would require less time to complete.
+ 3. It should be possible to perform the file migration step without performing the database step. This assumption
+    is to facilitate migrating the file system contents before the sever migration is to actually occur. When the actual
+    migration is to occur, a smaller file move could be done that would require less time to complete.
 
  4. It is desirable to minimize the impact on client servers. Therefore, a containerized approach is needed.
     However, it should still be possible to run the individual scripts from a command line if desired and the
@@ -48,6 +65,11 @@ second step for the database.
 
  5. All scripts must at least log to STDERR. This allows all logging to be available via the kubernetes/OCP
     logs facility.
+
+#### Version 2 Changes
+
+Version 2 no longer supports database migrations independent of filesystem migrations. Filesystem data can be
+migrated without the database, but the database migration requires the filesystem to be transferred also.
 
 ### Filesystem Migration
 
@@ -58,6 +80,12 @@ will not copy the file again if nothing has changed.  This capability will speed
 be restarted. It also provides the ability to do the filesystem move in 2 stages. The first stage would move
 the bulk of the files. The 2nd stage would be done at a later time and `rsync` would only move the modified
 files; thus reducing the downtime needed for the migration.
+
+#### Version 2 Changes
+
+For user and project group migrations, the list of filesystem artifacts is generated from database queries.
+When possible, whole directories are migrated; but for models, individual files are migrated. For individual
+files, `tar` must be used as `rsync` via the `oc` command no longer supports individual files.
 
 ### Database Migration
 
@@ -102,9 +130,37 @@ that a rerun of the migration will perform all step (as described above in the d
 
 The migration manager will provide a method to view status of the migration.
 
-### Migration Deployment 
+### MVI Migration Controller Script
 
-The following migration YAML template will be used for the containerized migration
+While it is possible to manually create the deployment and deploy it using `kubectl`; for reliability and ease
+of use, a control script should be provided that provides the user interface to the migration facility.
+The control script will be run on the standalone server being migrated.  It will collect all information that it
+can automatically (e.g. **chartName**, **releaseName**, and**pvcName**).
+
+Additional deployment information will be obtained with command line parameters.
+ - **deploymentName** can be generated based upon the migration type.
+ - **imageName** can be derived based upon server arch, but a version/tag parameter may be needed.
+
+Actual control of the migration will be provided by command line parameters. These will at least include:
+ - _--migrationType_ - "`full`", "`files`", or "`db`"; This will start a migration of the given type.
+ - _--status_ - to show migration step status; Requires that a migration deployment be active.
+ - _--delete_ - to abort and/or delete the migration deployment; Requires that a migration deployment exist.
+
+The migration control script will load the docker image if it is not already loaded into docker. To facilitate
+this step, another command line parameter may be needed to identify the location of the docker image file.
+
+The control script is outside the scope of the initial delivery of the migration facility.
+
+#### Version 2 Changes
+
+In version 2, the controller script hides the yaml deployment work. A network config json file is required to
+identify source and destination cluster (or server) information. The control script will provide an option to
+output the deployment definition in case there is a need to modify it for special purposes. In this situation,
+the user would have to apply the deployment definition manually.
+
+### Migration Deployment
+
+The following migration YAML template will be used by the migration control script.
 
 ```yaml
 apiVersion: apps/v1
@@ -128,28 +184,28 @@ spec:
         release: {{releaseName}}
     spec:
       containers:
-      - name: {{deploymentName}}
-        image: {{imageName}}
-        imagePullPolicy: IfNotPresent
-        command:
-          - "/bin/sh"
-          - "-c"
-        args:
-          - 'touch /tmp/healthy && touch /opt/powerai-vision/data/logs/migration && /usr/local/migration/migmgr PARAMS >&2 && sleep 180'
-        volumeMounts:
-          - name: dlaas-data
-            mountPath: "/opt/powerai-vision/data"
-            subPath: data
-        resources:
-          limits:
-            cpu: 0
-            memory: 0Mi
-        readinessProbe:
-          exec:
-            command:
-              - cat
-              - /tmp/healthy
-          periodSeconds: 5
+        - name: {{deploymentName}}
+          image: {{imageName}}
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/bin/sh"
+            - "-c"
+          args:
+            - 'touch /tmp/healthy && touch /opt/powerai-vision/data/logs/migration && /usr/local/migration/migmgr PARAMS >&2 && sleep 180'
+          volumeMounts:
+            - name: dlaas-data
+              mountPath: "/opt/powerai-vision/data"
+              subPath: data
+          resources:
+            limits:
+              cpu: 0
+              memory: 0Mi
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /tmp/healthy
+            periodSeconds: 5
       volumes:
         - name: dlaas-data
           persistentVolumeClaim:
@@ -158,12 +214,12 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/arch
-                operator: In
-                values:
-                - ppc64le
-                - amd64
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - ppc64le
+                      - amd64
   selector:
     matchLabels:
       run: {{deploymentName}}
@@ -171,55 +227,31 @@ spec:
 
 The following variables must be changed when deploying:
 
- - **deploymentName**  -- the name of the deployment.
- - **imageName** -- the name, including the tag, of the docker image containing the migration logic.
- - **chartName** -- the name of the helm chart used to instantiate the MVI cluster
- - **releaseName** -- the name of the release for the MVI instance in the cluster.
- - **pvcName** -- the name of the PVC containing the file system used by MVI to store data
+- **deploymentName**  -- the name of the deployment.
+- **imageName** -- the name, including the tag, of the docker image containing the migration logic.
+- **chartName** -- the name of the helm chart used to instantiate the MVI cluster
+- **releaseName** -- the name of the release for the MVI instance in the cluster.
+- **pvcName** -- the name of the PVC containing the file system used by MVI to store data
 
-In a standalone environment, the **chartName** and the **releaeName** can be determine vis the `helm` command.
-The **pvcName** can be determined from `kubectl get pvcs`.
+In a standalone environment, the **chartName** and the **releaeName** can be determine vis the `helm` command. The **
+pvcName** can be determined from `kubectl get pvcs`.
 
 The **deploymentName** must be unique in the cluster. It will be used to create the working directory used by the
 migration manager for tracking status.
 
-The `spec.template.spec.containers[0].args` contains the command string that will start the migration manager 
-script. The command string must `touch /tmp/healthy` before calling the migration manager so that kubernetes
-health checks work. The ending `sleep` is to keep the container around so that logs can be examined.
+The `spec.template.spec.containers[0].args` contains the command string that will start the migration manager script.
+The command string must `touch /tmp/healthy` before calling the migration manager so that kubernetes health checks work.
+The ending `sleep` is to keep the container around so that logs can be examined.
 
-NOTE: The deployment must be deleted (`kubedtl delete deployment <deploymentName>`) to prevent the migration from
-being restarted when the `sleep` completes.
-
-### MVI Migration Controller Script
-
-While it is possible to manually create the deployment and deploy it using `kubectl`; for reliability and ease
-of use, a control script should be provided that provides the user interface to the migration facility.
-The control script will be run on the standalone server being migrated.  It will collect all information that it
-can automatically (e.g. **chartName**, **releaseName**, and**pvcName**).
-
-Additional deployment information will be obtained with command line parameters.
- - **deploymentName** can be generated based upon the migration type.
- - **imageName** can be derived based upon server arch, but a version/tag parameter may be needed.
-
-Actual control of the migration will be provided by command line parameters. These will at least include:
- - _--migrationType_ - "`full`", "`files`", or "`db`"; This will start a migration of the given type.
- - _--status_ - to show migration step status; Requires that a migration deployment be active.
- - _--delete_ - to abort and/or delete the migration deployment; Requires that a migration deployment exist.
-
-The migration control script will load the docker image if it is not already loaded into docker. To facilitate
-this step, another command line parameter may be needed to identify the location of the docker image file.
-
-The control script is outside the scope of the initial delivery of the migration facility.
+NOTE: The deployment must be deleted (`kubedtl delete deployment <deploymentName>`) to prevent the migration from being
+restarted when the `sleep` completes.
 
 ### Packaging
 
-There is no requirement to deliver a yum/apt installable package. Therefore, the migration facility will 
-be packaged as a tar file containing the following:
- - deployment yaml template
- - docker image
-
-There may need to be different tar files for PPC64 and X86 so that one tar file does not have to 
-contain both docker images.
+The goal is to have 2 files to perform a migration -- the controller script and the docker image containing the 
+migration workers. The docker image will be provided via a docker repository (either Docker Hub and the RedHat Registry).
+If the source server has internet access, the controller script will be the only file needed on the source server. 
+The deployment definition will identify the docker image and its repository.
 
 ## Design Alternatives
 
@@ -241,10 +273,7 @@ As currently designed, the migration facility migrates the entire server. This a
 for the file system artifacts, we could allow a parameter to identify the user directory(s) to be migrated.
 
 ## Future Consideration
-
-### migration control script
-
-The migration control script described above will be considered if the migration facility is enhanced
+l script described above will be considered if the migration facility is enhanced
 in the future.
 
 ### Use a kubernetes job
