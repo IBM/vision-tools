@@ -4,7 +4,12 @@ var baseurl;
 var users;
 var devices
 var deviceuuid;
+var inspections
 const persist = ['warn', 'error'];
+
+document.addEventListener('DOMContentLoaded', function () {
+	init();
+});
 
 /*
 *
@@ -66,17 +71,26 @@ function subscribeEvents() {
 		return;
 	}
 	UX_updateStatus(false, "Subscribing to Events", true);
-	source = new EventSource('/api/v1/system/events');
+	//source = new EventSource('/api/v1/system/events', { authorizationHeader: "Bearer ..." });
+	source = new EventSourcePolyfill('/api/v1/system/events', {
+		headers: {
+			'mvie-controller': authtoken
+		}
+	});
 	source.addEventListener("message", function (e) {
 		message = JSON.parse(e.data)
-		status = message.source + ":" + message.category + ":" + message.id + ":" + message.message
+		statusmsg = message.source + ":" + message.category + ":" + message.id + ":" + message.message
 		UX_updateStatus(true, e.data, true);
 		if (persist.includes(message.severity)) {
-			UX_flash(status, message.severity)
+			UX_flash(statusmsg, message.severity)
 		} else {
-			UX_flash(status, message.severity, 5000)
+			UX_flash(statusmsg, message.severity, 5000)
 		}
-
+		if (message.category.startsWith("batch")) {
+			if (message.severity == "success") {
+				finishedJobs.push(message.id);
+			}
+		}
 	});
 	source.addEventListener("ping", function (e) {
 		pingwaslast = true;
@@ -91,7 +105,9 @@ function getEngineStatus() {
 			if (xmlhttp.status == 200) {
 				UX_updateStatus(true, xmlhttp.responseText, true);
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
@@ -128,7 +144,9 @@ function backup() {
 				link.click();
 				UX_flashsuccess("Backup completed")
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 			UX_hidespin();
 		}
@@ -180,7 +198,9 @@ var clear_settings = function () {
 			if (xmlhttp.status == 200) {
 				UX_flashsuccess("Settings cleared");
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
@@ -192,7 +212,9 @@ var clear_metadata = function () {
 			if (xmlhttp.status == 200) {
 				UX_flashsuccess("Metadata cleared");
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
@@ -204,7 +226,9 @@ var clear_configuration = function () {
 			if (xmlhttp.status == 200) {
 				UX_flashsuccess("Configuration cleared");
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
@@ -216,10 +240,159 @@ var clear_all = function () {
 			if (xmlhttp.status == 200) {
 				UX_flashsuccess("System cleared");
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
+}
+/*
+*
+*	Inspections
+*
+*/
+function getInspections() {
+	insptab = document.getElementById("inspectiontable");
+	rowcount = insptab.rows.length
+	for (i = 1; i < rowcount; i++) {
+		insptab.deleteRow(1);
+	}
+	url = "https://" + location.host + "/api/v1/inspections/summary"
+	sendRequest(url, "GET", null, null, null, function () {
+		if (xmlhttp.readyState == 4) {
+			if (xmlhttp.status == 200) {
+				inspections = JSON.parse(xmlhttp.responseText)
+				UX_updateInspections()
+				//GetStats(0)
+			} else {
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
+			}
+			selbutton = document.getElementById("inspSelButton");
+			inspSelToggle = false;
+			selbutton.innerHTML = "Select All";
+		}
+	});
+}
+
+var inspSelToggle = false;
+function selectAllInsp() {
+	selbutton = document.getElementById("inspSelButton");
+	if (inspSelToggle) {
+		inspSelToggle = false;
+		selbutton.innerHTML = "Select All"
+	} else {
+		inspSelToggle = true;
+		selbutton.innerHTML = "Select None"
+	}
+	for (i = 0; i < inspections.length; i++) {
+		chk = document.getElementById("inspcheck" + i).checked = inspSelToggle;
+	}
+}
+
+function selInspSetState(state) {
+	for (i = 0; i < inspections.length; i++) {
+		if (document.getElementById("inspcheck" + i).checked) {
+			url = "https://" + location.host + "/api/v1/inspections/states?uuid=";
+			url += inspections[i].inspection_uuid + "&enable=";
+			url += state ? "true" : "false";
+			sendRequest(url, "PUT", null, null, null, function () {
+				if (xmlhttp.readyState == 4) {
+					if (xmlhttp.status == 200) {
+						inspections = JSON.parse(xmlhttp.responseText)
+						getInspections()
+						//GetStats(0)
+					} else {
+						UX_updateStatus(true, xmlhttp.responseText, true);
+						result = JSON.parse(xmlhttp.responseText);
+						UX_flasherror(result.fault);
+					}
+				}
+			});
+		}
+	}
+}
+
+var inspsToClear = [];
+var batchJobs = [];
+var finishedJobs = [];
+var jobWaitInterval;
+function getFilterData() {
+	url = "https://" + location.host + "/api/v1/inspections/images/filterdata?uuid=" + inspsToClear[0];
+	sendRequest(url, "GET", null, null, null, function () {
+		if (xmlhttp.readyState == 4) {
+			if (xmlhttp.status == 200) {
+				var filterdata = JSON.parse(xmlhttp.responseText);
+				var uuid = filterdata.u
+				var images = filterdata.i;
+				if (images != null) {
+					var batchbody = {
+						"action": "delete",
+						"filenames": [],
+						"inspectionUUID": uuid
+					};
+					for (j = 0; j < images.length; j++) {
+						batchbody.filenames.push(images[j].f)
+					}
+					batchurl = "https://" + location.host + "/api/v1/inspections/images/batchactions";
+					sendRequest(batchurl, "PUT", batchbody, null, null, function () {
+						if (xmlhttp.readyState == 4) {
+							if (xmlhttp.status == 200) {
+								result = JSON.parse(xmlhttp.responseText);
+								batchJobs.push(results.job_id)
+								var name = "";
+								for (i = 0; i < inspections.length; i++) {
+									if (inspections[i].inspection_uuid == uuid) {
+										name = inspections[i].name;
+										break;
+									}
+								}
+								UX_flashinfo("Submitted Batch Delete for " + name);
+							} else {
+								result = JSON.parse(xmlhttp.responseText);
+								UX_flasherror(result.fault);
+							}
+						}
+					});
+				}
+			} else {
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
+			}
+			inspsToClear.shift();
+			if (inspsToClear.length > 0) {
+				getFilterData();
+			} else {
+				jobWaitInterval = setInterval(waitForJobs, 500);
+			}
+		}
+	});
+}
+
+function clearSelInsp() {
+	inspsToClear = [];
+	batchJobs = [];
+	finishedJobs = [];
+	for (i = 0; i < inspections.length; i++) {
+		if (document.getElementById("inspcheck" + i).checked) {
+			inspsToClear.push(inspections[i].inspection_uuid)
+		}
+	}
+	getFilterData();
+}
+
+function waitForJobs() {
+	for (i=0; i < finishedJobs.length; i++) {
+		batchJobs.splice(finishedJobs[i], 1);
+	}
+	if (batchJobs.length == 0) {
+		clearInterval(jobWaitInterval);
+		UX_flashsuccess("Batch jobs completed");
+		getInspections();
+	}
 }
 
 /*
@@ -235,7 +408,9 @@ function getUsers() {
 				users = JSON.parse(xmlhttp.responseText);
 				UX_updateUsers();
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
@@ -261,7 +436,9 @@ function addUser() {
 				UX_flashsuccess("User added");
 				getUsers();
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 			document.getElementById("userModal").style.display = "none";;
 		}
@@ -279,7 +456,9 @@ function chgEmail() {
 				UX_flashsuccess("Email changed");
 				getUsers();
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 			document.getElementById("emailModal").style.display = "none";;
 		}
@@ -304,7 +483,9 @@ function chgPwd() {
 			if (xmlhttp.status == 200) {
 				UX_flashsuccess("Password changed");
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 			document.getElementById("pwdModal").style.display = "none";;
 		}
@@ -320,7 +501,9 @@ var delUser = function () {
 				UX_flashsuccess("User deleted");
 				getUsers();
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 			document.getElementById("pwdModal").style.display = "none";
 		}
@@ -340,7 +523,9 @@ function getDevices() {
 				devices = JSON.parse(xmlhttp.responseText);
 				UX_updateDevices();
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
@@ -352,7 +537,7 @@ function setupUpload(devuuid) {
 }
 
 function getFolderStats(devcount, callback) {
-	devuuid = document.getElementById("devuuid"+devcount).innerHTML
+	devuuid = document.getElementById("devuuid" + devcount).innerHTML
 	url = baseurl + "devices/folders/stats?uuid=" + devuuid;
 	sendRequest(url, "GET", null, null, null, function () {
 		if (xmlhttp.readyState == 4) {
@@ -360,7 +545,9 @@ function getFolderStats(devcount, callback) {
 				stats = JSON.parse(xmlhttp.responseText);
 				callback(devcount, stats);
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});
@@ -372,9 +559,11 @@ function restoreFiles(devuuid, devcount) {
 		if (xmlhttp.readyState == 4) {
 			if (xmlhttp.status == 200) {
 				UX_flashsuccess("Restore completed");
-				UX_updateStats(devcount);
+				UX_updateStats(devcount, function () { });
 			} else {
-				UX_flasherror(xmlhttp.responseText);
+				UX_updateStatus(true, xmlhttp.responseText, true);
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flasherror(result.fault);
 			}
 		}
 	});

@@ -8,82 +8,112 @@
   <link rel="stylesheet" href="util.css">
   <script src="./utilClient.js"></script>
   <script src="./utilUX.js"></script>
+  <script src="./eventsource.js"></script>
 </head>
 
-<body onload="init();" onunload="logout();">
+<body>
 
   <div>
     <h2>Admin Utilities</h2>
     <p><b>Disclaimer:</b> These utilities are not part of the supported Maximo Visual Inspection Edge product. <br>
       They make calls to the MVI Edge REST API that are not yet exposed in the UI but may be useful to administrators of
       this MVP release. </p>
-      <div class="spin" id="spin" style="display:none"></div>
-      <hr>
+    <div class="spin" id="spin" style="display:none"></div>
+    <hr>
     <div>
       <br>
       <label for="userid">User:</label>
       <input type="text" id="userid" value="masadmin">
       <label for="pwd">Password:</label>
       <input type="password" id="pwd" value="VisionP@ssw0rd">
-      <button type="button" class="button" id="login" onclick="login();" >Login</button>
-      <button type="button" class="button" id="logout" onclick="logout();">Logout</button>
+      <button type="button" class="button" id="login" >Login</button>
+      <button type="button" class="button" id="logout" >Logout</button>
       <br><br>
       <div class="buttons">
-          <button type="button" class="tab" id="status" onclick="UX_status();">Status</button>
-          <button type="button" class="tab" id="backup" onclick="UX_backup();">Backup / Restore</button>
-          <button type="button" class="tab" id="purge" onclick="UX_purge();">Purge Data</button>
-          <button type="button" class="tab" id="user" onclick="UX_user();">User Management</button>
-          <button type="button" class="tab" id="images" onclick="UX_images();">Folder Device Management</button>
+        <button type="button" class="tab" id="status" >Status</button>
+        <button type="button" class="tab" id="backup" >Backup / Restore</button>
+        <button type="button" class="tab" id="purge" >Purge Data</button>
+        <button type="button" class="tab" id="user" >User Management</button>
+        <button type="button" class="tab" id="images" >Folder Device Management</button>
+        <button type="button" class="tab" id="inspections" >Inspection Management</button>
       </div>
       <p></p>
       <div>
         <div id="statusdiv">
           <h3>Status</h3>
-          <button type="button" class="button" id="engineStatus" onclick="getEngineStatus();">Engine Status</button>
+          <button type="button" class="button" id="engineStatus" >Engine Status</button>
           <textarea id="statustext" rows=30></textarea>
         </div>
         <div id="backupdiv">
           <h3>Backup & Restore</h3>
-          <button type="button" class="button" onclick="backup();">Backup</button>
+          <button type="button" class="button" id="backupbutton" >Backup</button>
           <span>Backup the entire system</span><br>
-          <button type="button" class="button" onclick="UX_validate('restore the system',selectFile,null);">Restore</button>
-          <input type="file" id="restoreFile" multiple size="1" style="display:none" onchange="restore()">
-          <span>Restore the entire system. The system should be empty of configuration. Use Purge All first if this is not the case.</span>
+          <button type="button" class="button" id="restorebutton"
+            >Restore</button>
+          <input type="file" id="restoreFile" multiple size="1" style="display:none">
+          <span>Restore the entire system. The system should be empty of configuration. Use Purge All first if this is
+            not the case.</span>
         </div>
         <div id="purgediv">
           <h3>Clear Data</h3>
-          <button type="button" class="button" onclick="UX_validate('clear system settings',clear_settings,null);">Settings</button>
+          <button type="button" class="button" id="clearsettingsbutton"
+            >Settings</button>
           <span>Clears the System Settings (MVI, MQTT, Twillio)</span><br>
-          <button type="button" class="button" onclick="UX_validate('clear all metadata',clear_metadata,null);">MetaData</button>
+          <button type="button" class="button" id="clearmetadatabutton"
+            >MetaData</button>
           <span>Clears Metadata (Inferences, Results, Alerts, Images) but leaves configurations in place</span><br>
-          <button type="button" class="button" onclick="UX_validate('clear all configurations',clear_configuration,null);">Configuration</button>
+          <button type="button" class="button" id="clearconfigsbutton"
+            >Configuration</button>
           <span>Clears All configurations (Stations, Inspections, Rules, Triggers) as well as all Metadata</span><br>
-          <button type="button" class="button" onclick="UX_validate('clear the system',clear_all,null);">All</button>
+          <button type="button" class="button" id="clearsystembutton"
+            >All</button>
           <span>Clears Everything (takes the system back to post-installation state)</span>
         </div>
         <div id="userdiv">
           <h3>Manage Users & Passwords</h3>
           <p>Add, change, & delete users.</p>
-          <button type="button" class="button" onclick="UX_userModal();">Add User</button>
-          <table id="usertable" class="utiltable"> 
-              <tr>
-                <th>User ID</th>
-                <th>Email</th>
-                <th>Actions</th>
-              </tr>
+          <button type="button" class="button" id="adduserbutton"
+            >Add User</button>
+          <table id="usertable" class="utiltable">
+            <tr>
+              <th>User ID</th>
+              <th>Email</th>
+              <th>Actions</th>
+            </tr>
           </table>
         </div>
         <div id=uploaddiv>
           <h3>Manage Folder Devices</h3>
           <input type="file" id="uploadImages" multiple size="1" style="display:none" onchange="doUpload();">
-          <button id="uploadclicker" onclick="document.getElementById('uploadImages').click();" style="display:none"></button>
-          <table id="devicetable" class="utiltable"> 
+          <button id="uploadclicker" 
+            style="display:none"></button>
+          <table id="devicetable" class="utiltable">
             <tr>
               <th>Device</th>
               <th>Device Type</th>
               <th>Files</th>
             </tr>
-        </table>
+          </table>
+        </div>
+        <div id=inspectionsdiv>
+          <h3>Manage inspections</h3>
+          <button type="button" class="button" id="inspSelButton" >Select All</button>
+          <button type="button" class="button" id="inspStartlButton" >Start</button>
+          <button type="button" class="button" id="inspStopButton">Stop</button>
+          <button type="button" class="button" id="inspClearButton" >Clear</button>
+          <table id="inspectiontable" class="utiltable">
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Mode</th>
+              <th>Status</th>
+              <th>#</th>
+              <th>P</th>
+              <th>F</th>
+              <th>I</th>
+              <th>A</th>
+            </tr>
+          </table>
         </div>
       </div>
     </div>
@@ -108,7 +138,7 @@
             <td><input type="password" id="confuserpwd"><br></td>
           </tr>
         </table>
-        <button type="button" class="button" id="addUser" onclick="addUser();" >Save</button>
+        <button type="button" class="button" id="addUser" >Save</button>
       </div>
     </div>
     <div id="emailModal" class="modal">
@@ -117,7 +147,7 @@
         <input type="text" id="emailuserid" style="display:none">
         <label for="chguseremail">Email:</label></td>
         <input type="text" id="chguseremail">
-        <button type="button" class="button" id="chgEmail" onclick="chgEmail();">Save</button>
+        <button type="button" class="button" id="chgEmail" >Save</button>
       </div>
     </div>
     <div id="pwdModal" class="modal">
@@ -134,7 +164,7 @@
             <td><input type="password" id="confchgpwd"><br></td>
           </tr>
         </table>
-        <button type="button" class="button" id="chgPwd" onclick="chgPwd();">Save</button>
+        <button type="button" class="button" id="chgPwd" >Save</button>
       </div>
     </div>
     <div id="validateModal" class="modal">
@@ -142,8 +172,8 @@
         <span id="closeValidate" class="close">&times;</span>
         <input type="text" id="validateId" style="display:none">
         <div id="validateMessage"></div>
-        <button type="button" class="button" id="validated" onclick="executeAction();">OK</button>
-        <button type="button" class="button" id="cancel" onclick="UX_closevalidate();">Cancel</button>
+        <button type="button" class="button" id="validated" >OK</button>
+        <button type="button" class="button" id="cancel" >Cancel</button>
       </div>
     </div>
 </body>

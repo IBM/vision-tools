@@ -16,6 +16,63 @@ function UX_init() {
 	UX_setLoggedOut();
 	UX_status();
 	baseurl = "https://" + location.host + "/api/v1/";
+	document.getElementById("login").addEventListener("click", login);
+	document.getElementById("logout").addEventListener("click", logout);
+	document.getElementById("status").addEventListener("click", UX_status);
+	document.getElementById("backup").addEventListener("click", UX_backup);
+	document.getElementById("purge").addEventListener("click", UX_purge);
+	document.getElementById("user").addEventListener("click", UX_user);
+	document.getElementById("images").addEventListener("click", UX_images);
+	document.getElementById("inspections").addEventListener("click", UX_inspections);
+	document.getElementById("engineStatus").addEventListener("click", getEngineStatus);
+	document.getElementById("backupbutton").addEventListener("click", backup);
+	document.getElementById("restoreFile").addEventListener("change", restore);
+	document.getElementById("restorebutton").addEventListener("click", function() {
+		UX_validate('restore the system',function() {
+			selectFile();
+		},null);
+	});
+	document.getElementById("clearsettingsbutton").addEventListener("click", function() {
+		UX_validate('clear system settings',function() {
+			clear_settings();
+		},null);
+	});
+	document.getElementById("clearmetadatabutton").addEventListener("click", function() {
+		UX_validate('clear all metadata',function() {
+			clear_metadata();
+		},null);
+	});
+	document.getElementById("clearconfigsbutton").addEventListener("click", function() {
+		UX_validate('clear all configurations',function() {
+			clear_configuration();
+		},null);
+	});
+	document.getElementById("clearsystembutton").addEventListener("click", function() {
+		UX_validate('clear the system',function() {
+			clear_all();
+		},null);
+	});
+	document.getElementById("adduserbutton").addEventListener("click", UX_userModal);
+	document.getElementById("uploadImages").addEventListener("change", doUpload);
+	document.getElementById("uploadclicker").addEventListener("click", function() {
+		document.getElementById('uploadImages').click();
+	});
+	document.getElementById("inspSelButton").addEventListener("click", selectAllInsp);
+	document.getElementById("inspStartlButton").addEventListener("click", function() {
+		selInspSetState(true);
+	});
+	document.getElementById("inspStopButton").addEventListener("click", function() {
+		selInspSetState(false);
+	});
+	document.getElementById("inspClearButton").addEventListener("click", clearSelInsp);
+	document.getElementById("addUser").addEventListener("click", addUser);
+	document.getElementById("chgEmail").addEventListener("click", chgEmail);
+	document.getElementById("chgPwd").addEventListener("click", chgPwd);
+	document.getElementById("validated").addEventListener("click", executeAction);
+	document.getElementById("cancel").addEventListener("click", UX_closevalidate);
+	document.body.addEventListener("unload",logout);
+
+
 }
 
 function UX_flashsuccess(message) {
@@ -92,11 +149,13 @@ function UX_status() {
 	document.getElementById("purge").classList.remove("selected");
 	document.getElementById("user").classList.remove("selected");
 	document.getElementById("images").classList.remove("selected");
-	document.getElementById("statusdiv").style.display = "block"
-	document.getElementById("backupdiv").style.display = "none"
-	document.getElementById("purgediv").style.display = "none"
-	document.getElementById("userdiv").style.display = "none"
-	document.getElementById("uploaddiv").style.display = "none"
+	document.getElementById("inspections").classList.remove("selected");
+	document.getElementById("statusdiv").style.display = "block";
+	document.getElementById("backupdiv").style.display = "none";
+	document.getElementById("purgediv").style.display = "none";
+	document.getElementById("userdiv").style.display = "none";
+	document.getElementById("uploaddiv").style.display = "none";
+	document.getElementById("inspectionsdiv").style.display = "none";
 }
 function UX_backup() {
 	document.getElementById("status").classList.remove("selected");
@@ -104,11 +163,13 @@ function UX_backup() {
 	document.getElementById("purge").classList.remove("selected");
 	document.getElementById("user").classList.remove("selected");
 	document.getElementById("images").classList.remove("selected");
-	document.getElementById("statusdiv").style.display = "none"
-	document.getElementById("backupdiv").style.display = "block"
-	document.getElementById("purgediv").style.display = "none"
-	document.getElementById("userdiv").style.display = "none"
-	document.getElementById("uploaddiv").style.display = "none"
+	document.getElementById("inspections").classList.remove("selected");
+	document.getElementById("statusdiv").style.display = "none";
+	document.getElementById("backupdiv").style.display = "block";
+	document.getElementById("purgediv").style.display = "none";
+	document.getElementById("userdiv").style.display = "none";
+	document.getElementById("uploaddiv").style.display = "none";
+	document.getElementById("inspectionsdiv").style.display = "none";
 }
 function UX_purge() {
 	document.getElementById("status").classList.remove("selected");
@@ -116,11 +177,13 @@ function UX_purge() {
 	document.getElementById("purge").classList.add("selected");
 	document.getElementById("user").classList.remove("selected");
 	document.getElementById("images").classList.remove("selected");
-	document.getElementById("statusdiv").style.display = "none"
-	document.getElementById("backupdiv").style.display = "none"
-	document.getElementById("purgediv").style.display = "block"
-	document.getElementById("userdiv").style.display = "none"
-	document.getElementById("uploaddiv").style.display = "none"
+	document.getElementById("inspections").classList.remove("selected");
+	document.getElementById("statusdiv").style.display = "none";
+	document.getElementById("backupdiv").style.display = "none";
+	document.getElementById("purgediv").style.display = "block";
+	document.getElementById("userdiv").style.display = "none";
+	document.getElementById("uploaddiv").style.display = "none";
+	document.getElementById("inspectionsdiv").style.display = "none";
 }
 function UX_user() {
 	document.getElementById("status").classList.remove("selected");
@@ -128,11 +191,13 @@ function UX_user() {
 	document.getElementById("purge").classList.remove("selected");
 	document.getElementById("user").classList.add("selected");
 	document.getElementById("images").classList.remove("selected");
-	document.getElementById("statusdiv").style.display = "none"
-	document.getElementById("backupdiv").style.display = "none"
-	document.getElementById("purgediv").style.display = "none"
-	document.getElementById("userdiv").style.display = "block"
-	document.getElementById("uploaddiv").style.display = "none"
+	document.getElementById("inspections").classList.remove("selected");
+	document.getElementById("statusdiv").style.display = "none";
+	document.getElementById("backupdiv").style.display = "none";
+	document.getElementById("purgediv").style.display = "none";
+	document.getElementById("userdiv").style.display = "block";
+	document.getElementById("uploaddiv").style.display = "none";
+	document.getElementById("inspectionsdiv").style.display = "none"
 	getUsers();
 }
 function UX_images() {
@@ -141,12 +206,29 @@ function UX_images() {
 	document.getElementById("purge").classList.remove("selected");
 	document.getElementById("user").classList.remove("selected");
 	document.getElementById("images").classList.add("selected");
-	document.getElementById("statusdiv").style.display = "none"
-	document.getElementById("backupdiv").style.display = "none"
-	document.getElementById("purgediv").style.display = "none"
-	document.getElementById("userdiv").style.display = "none"
-	document.getElementById("uploaddiv").style.display = "block"
+	document.getElementById("inspections").classList.remove("selected");
+	document.getElementById("statusdiv").style.display = "none";
+	document.getElementById("backupdiv").style.display = "none";
+	document.getElementById("purgediv").style.display = "none";
+	document.getElementById("userdiv").style.display = "none";
+	document.getElementById("uploaddiv").style.display = "block";
+	document.getElementById("inspectionsdiv").style.display = "none";
 	getDevices()
+}
+function UX_inspections() {
+	document.getElementById("status").classList.remove("selected");
+	document.getElementById("backup").classList.remove("selected");
+	document.getElementById("purge").classList.remove("selected");
+	document.getElementById("user").classList.remove("selected");
+	document.getElementById("images").classList.remove("selected");
+	document.getElementById("inspections").classList.add("selected");
+	document.getElementById("statusdiv").style.display = "none";
+	document.getElementById("backupdiv").style.display = "none";
+	document.getElementById("purgediv").style.display = "none";
+	document.getElementById("userdiv").style.display = "none";
+	document.getElementById("uploaddiv").style.display = "none";
+	document.getElementById("inspectionsdiv").style.display = "block";
+	getInspections()
 }
 
 function UX_updateStatus(leading, message, trailing) {
@@ -277,14 +359,51 @@ function UX_updateDevices() {
 	}
 	statrowcount = devcount;
 	currcount = 1;
-	UX_updateNextStats();	
+	UX_updateNextStats();
+}
+
+function UX_updateInspections() {
+	insptab = document.getElementById("inspectiontable");
+	rowcount = insptab.rows.length
+	for (i = 1; i < rowcount; i++) {
+		insptab.deleteRow(1);
+	}
+	devcount = 0;
+	for (i = 0; i < inspections.length; i++) {
+		devcount++;
+		row = insptab.insertRow(devcount);
+		//row.className = ("utr");
+		cell1 = row.insertCell(0);
+		cell2 = row.insertCell(1);
+		cell3 = row.insertCell(2);
+		cell4 = row.insertCell(3);
+		cell5 = row.insertCell(4);
+		cell6 = row.insertCell(5);
+		cell7 = row.insertCell(6);
+		cell8 = row.insertCell(7);
+		cell9 = row.insertCell(8);
+		var chk = document.createElement('input');
+		chk.setAttribute('type', 'checkbox');
+		chk.setAttribute('value', '');
+		chk.setAttribute('id', 'inspcheck' + i);
+		cell1.appendChild(chk);
+		cell2.innerHTML = inspections[i].name;
+		cell3.innerHTML = inspections[i].mode;
+		cell4.innerHTML = inspections[i].enabled ? "enabled" : "disabled";
+		cell5.innerHTML = inspections[i].stats.imagecnt;
+		cell6.innerHTML = inspections[i].stats.pass;
+		cell7.innerHTML = inspections[i].stats.fail;
+		cell8.innerHTML = inspections[i].stats.inconclusive;
+		cell9.innerHTML = inspections[i].stats.alerts;
+
+	}
 }
 
 var currcount;
 var statrowcount;
 
 function UX_updateNextStats() {
-	UX_updateStats(currcount, function(){
+	UX_updateStats(currcount, function () {
 		currcount++;
 		if (currcount <= statrowcount) {
 			UX_updateNextStats();
