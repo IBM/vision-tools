@@ -139,7 +139,7 @@ By default, the vision-edge-dle container will not process inferences if there i
 ## Unsupported Platforms
 <details>
   <summary>Click to expand</summary>
-As documented in the [Inception Basics](*Incpetion-Basics) section above, the installation of MVI Edge is a process of running the inception image as a "run-once" docker container that sets up the environment, and running the `startedge.sh` script to complete the installation. Any platform that can support docker and a linux shell to run the script are suitable for installation.
+As documented in the [Inception Basics](#Inception-Basics) section above, the installation of MVI Edge is a process of running the inception image as a "run-once" docker container that sets up the environment, and running the `startedge.sh` script to complete the installation. Any platform that can support docker and a linux shell to run the script are suitable for installation.
 
 However, there are deltas from the standard installation procedure for different platforms. The deltas for the most common are documented separately:
 
