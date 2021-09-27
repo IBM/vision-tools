@@ -209,8 +209,9 @@ var clear_metadata = function () {
 	url = baseurl + "system/purge/metadata";
 	sendRequest(url, "PUT", null, null, null, function () {
 		if (xmlhttp.readyState == 4) {
-			if (xmlhttp.status == 200) {
-				UX_flashsuccess("Metadata cleared");
+			if (xmlhttp.status == 202) {
+				result = JSON.parse(xmlhttp.responseText);
+				UX_flashsuccess(result.result);
 			} else {
 				UX_updateStatus(true, xmlhttp.responseText, true);
 				result = JSON.parse(xmlhttp.responseText);
