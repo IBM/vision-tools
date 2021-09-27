@@ -258,16 +258,25 @@ function UX_updateUsers() {
 		cell3 = row.insertCell(2);
 		cell1.innerHTML = users[i].userid;
 		cell2.innerHTML = users[i].email;
-		deluser = "<button type=\"button\" class=\"tightbutton\" onclick=\"UX_validate('delete the user',delUser,'";
-		deluser += users[i].userid;
-		deluser += "');\" >Delete User</button>"
-		chgemail = "<button type=\"button\" class=\"tightbutton\" onclick=\"UX_emailModal('";
-		chgemail += users[i].userid;
-		chgemail += "');\" >Change Email</button>"
-		chgpwd = "<button type=\"button\" class=\"tightbutton\" onclick=\"UX_pwdModal('";
-		chgpwd += users[i].userid;
-		chgpwd += "');\" >Change Password</button>"
+		deluser = "<button type=\"button\" class=\"tightbutton\" id=\"deluserbutton"
+		deluser += i + "\" name=\"";
+		deluser += users[i].userid + "\">Delete User</button>"
+		chgemail = "<button type=\"button\" class=\"tightbutton\" id=\"chguseremailbutton"
+		chgemail += i + "\" name=\"";
+		chgemail += users[i].userid + "\">Change Email</button>"
+		chgpwd = "<button type=\"button\" class=\"tightbutton\" id=\"chguserpwdbutton"
+		chgpwd += i + "\" name=\"";
+		chgpwd += users[i].userid + "\" >Change Password</button>"
 		cell3.innerHTML = deluser + chgemail + chgpwd;
+		document.getElementById("deluserbutton"+i).addEventListener("click", function() {
+			UX_validate('delete the user',delUser,this.name);
+		});
+		document.getElementById("chguseremailbutton"+i).addEventListener("click", function() {
+			UX_emailModal(this.name);
+		});
+		document.getElementById("chguserpwdbutton"+i).addEventListener("click", function() {
+			UX_pwdModal(this.name);
+		});
 	}
 }
 
@@ -350,12 +359,17 @@ function UX_updateDevices() {
 		cell2.innerHTML = devices[i].type;
 		device_uuid = "<div id=\"devuuid" + devcount + "\" style='display:none'>" + devices[i].uuid + "</div>";
 		folderstats = "<div><span id=\"folder" + devcount + "\"></span><br><span id=\"processed" + devcount + "\"></span></div>";
-		refreshstats = "<button type=\"button\" class=\"tightbutton\" onclick=\"UX_updateStats(";
-		refreshstats += devcount + ",function(){});\" >Refresh Stats</button><br>";
-		restore = "<button type=\"button\" class=\"tightbutton\" onclick=\"restoreFiles('";
-		restore += devices[i].uuid + "'," + devcount;
-		restore += ");\">Restore Processed Files</button>";
+		refreshstats = "<button type=\"button\" class=\"tightbutton\" id=\"refreshstatsbutton" + devcount + "\" ";
+		refreshstats += "name=\"" + devcount + "\" >Refresh Stats</button><br>";
+		restore = "<button type=\"button\" class=\"tightbutton\" id=\"restorefilesbutton" + devcount + "\" ";
+		restore += "name=\"" + devices[i].uuid + "\">Restore Processed Files</button>";
 		cell3.innerHTML = device_uuid + folderstats + refreshstats + restore;
+		document.getElementById("refreshstatsbutton"+devcount).addEventListener("click", function() {
+			UX_updateStats(this.name, function(){});
+		});
+		document.getElementById("restorefilesbutton"+devcount).addEventListener("click", function() {
+			restoreFiles(this.name, this.id.replace("restorefilesbutton",""));
+		});
 	}
 	statrowcount = devcount;
 	currcount = 1;
