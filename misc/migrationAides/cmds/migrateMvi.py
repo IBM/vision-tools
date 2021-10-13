@@ -24,7 +24,6 @@ import subprocess
 import sys
 import logging as logger
 import re
-import requests
 
 
 args = None
@@ -65,6 +64,10 @@ def ensureVersionCompatibility():
         logger.warning("Cannot validate MVI versions because at least one on 'mviUrl' attribute "\
                        "is missing from the cluster config file.")
         return
+
+    import requests
+    # Disable warning messages about SSL certs
+    requests.packages.urllib3.disable_warnings()
 
     if clusterCfg.source["mviUrl"] == clusterCfg.destination["mviUrl"]:
         print(f"Error: Source and destination MVI URL cannot be the same. Check '{args.configFile}'.",
@@ -115,8 +118,6 @@ def createDeployment():
 
 def setupEnvironment():
     """Collect input information and setup the working environment."""
-    # Disable warning messages about SSL certs
-    requests.packages.urllib3.disable_warnings()
 
     global args
     args = getInputs()

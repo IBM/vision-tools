@@ -1,118 +1,119 @@
 # Execution Notes
 
 ## Overview
-This document starts with how to run the migration by hand using kubectl to kick things off.
-It will be modified in the future to make use of the migration controller script when that script is done.
-The goal of the migration controller is to hide the kubernetes overhead from the user by providing a single
-command to start, monitor, and delete migrations.
 
-## Running Containerized Migration by hand.
+This document describes the steps to perform a migration using 
+the migration control script as the interface to the migration.
 
-#### General Information
+## Running a Migration using the `migrateMvi.py` Control Script
 
-The steps below make use of `helm` and `kubectl`. These commands are include in `/opt/ibm/vision/bin`. In
-the following instructions, it is assumed that these commands are in your `PATH` environment variable. If
-they are not, either add them to your path (preferable) or use absolute paths where the command names are
-used below.
+### 1. Pull the Docker Image
 
-Secondly, if you have run the OCP `oc` command on your server, it can change default cluster and cause
-`kubectl` to ask for cluster and/or user login information. If you run into this situation, you can either
-use the `kubectl.sh` command (also in `/opt/ibm/vision/bin`), or add the local cluster information to the 
-kube config data (`~/.kube/config`). Once the local information is added, set the current context to local
-(`kubectl config use-context local`). See `/opt/ibm/vision/config/kube.config` for the information
-to add to `~/.kube/config`.
+At this time, there is a problem with the deployment definition pulling the docker image. Therefore, the image
+must be pulled manually. To pull the image onto the migration source server, run 
+`docker pull docker.io/bcarl/mvi-migration:1.0.0_ppc64le`
 
-#### 1. Download the tar file
+### 2. Get the `migrateMvi.py` Control Script
 
-The containerized migration tool is available in a tar file that contains all of the pieces to be run.
-The tar file is available at TAR_FILE_LOCATION
+This script must be obtained from the `ibm/vision-tools` repo at https://github.com. The repo can either be cloned onto the
+migration source server or it can be cloned onto a different computer. If cloned onto a different computer, the
+`migrateMvi.py` script must be copied onto the source server to be migrated.
 
-#### 2. Un-tar the migration tar file.
+The `migrateMvi.py` script requires Python at version 3.6 or higher. It optionally uses the `Requests` package in
+order to check versions of the source and target MVI servers in the migration. This step can be bypassed when the 
+source server is a standalone server.
 
-#### 3. Load the docker image.
+### 3. Set up the Cluster Config File
 
-The docker image is the file called `mvi-migration_ppc64le:<VERSION_NUMBER>`, where version number is a number
-like `1.0.0`. There will be only 1 docker image in the tar file.
+The cluster config file is a JSON file that contains access information for the migration source and destination
+servers. Information for the migration source is different for a standalone server than a cloud based
+server. The following information is required for cloud based servers (note that the destination must be a cloud
+based server)
 
-Assuming that the current version number, run `docker import mvi-migration_ppc64le:1.0.0`.
+ - `clusterUrl` -- The URL for the Open Shift CLI command
+ - `clusterProject` -- The project name for the MVI application deployment
+ - `clusterToken` -- The Open Shift API token to allow CLI access
+ - `mviUrl` -- MVI API URL to validate versions (can be left out for standalone server migrations)
 
-#### 4. Setup destination cluster for migration
+For a standalone source server, the following information is required
 
-Change the token expiration from the default to 3 days. Steps to modify the token expiration can be found here: https://docs.openshift.com/container-platform/4.6/authentication/configuring-internal-oauth.html
-This change is needed for 2 reasons
- 1. The `rsync` can take a long time and potential expire the OCP token before the database migration is done.
- 2. The default token does not seem to allow multiple logins from different hosts, and the container will
-    appear as a different host.
+ - `mongoUser` -- MVI internal mongoDB server user name.
+ - `mongoPw` -- MVI internal mongoDB server password.
 
-> TODO Add example yaml and ocp command to change the default token expiration.
-
-Login to the destination cluster's OCP console and request a login token. Save the token for use in the deployment
-later.
-
-#### 5. Create and Edit the migration deployment yaml.
-
-A deployment template is included in the tar file, called `migration_deployment_template.yaml`.
-Collect the following information for the deployment yaml...
- - **chart name** -- available from `helm list`.
- - **release name** -- available from `helm list`.
- - **image name** -- docker image name loaded in previous step
- - **pvc name** -- available from `kubectl get pvc`
- - **deployment name** -- name of your choosing for the deployment (e.g. `mvi-migration-0501-1`, where `0501-1`
-   is the date and an instance number.)
-   
-Use `sed` to edit the template file into a deployment yaml definition.
-```bash
-cat migration_deployment_template.yaml | sed -e 's/{{deploymentName}}/mvi-migration-0501-2/g' \
-  -e 's/{{chartName}}/ibm-visual-inspection-prod-3.0.0/' \
-  -e 's/{{releaseName}}/vision/' \
-  -e 's/{{imageName}}/mvi-migration_ppc64le:1.0.0/' \
-  -e 's/{{pvcName}}/vision-data-pvc/' > migration_deployment.yaml
+An example cluster config file might look like
+```json
+{
+    "destination": {
+        "clusterUrl": "https://ocp.cli.cloud.ibm.com:12345",
+        "clusterToken": "OCP_LOGIN_TOKEN",
+        "clusterProject": "mas-testenv-visualinspection",
+    },
+    "source": {
+        "mongoUser": "admin",
+        "mongoPW": "MVI_MONGO_PW"
+    }
+} 
 ```
+### 4. Start the Migration
 
-Collect the following information for the migration...
- - **mongo user name** -- the name of the mongoDB user on the source system (e.g. `admin`).
- - **mongo password** -- the password for the mongoDB user on the source system.
- - **mongo service name** -- the name of the mongoDB service on the source system.
-   On standalone systems, this is typically `vision-mongodb`. It can be obtained from `kubectl get services`.
- - **destination cluster URL** -- the URL provided when you get an OCP login token.
- - **destination token** -- the token provided when you get an OCP login token.
- - **destination project** -- the name of the MVI project on the destination cluster.
+To start the migration, use the `migrateMvi.py` script. This script requires the following information
+ - _name_ -- a name for the migration passed via the `--name` flag. Each migration should have a unique name
+   so that status information can be tracked separately. Uniqueness is not enforced at this time.
+ - _clusterConfigInfo_ -- Path to the cluster config file described in Step 3 above. This path can be passed on either the 
+   `--config` flag or via the `MVI_MIG_CONFIG` environment variable.
+ - _--migrate_ -- identifies the operation to be preformed is a migration operation
+ - _migrationScope_ -- specified via one of the following flags
+   - **--server** -- to migrate the entire server
+   - **--users** -- to migrate one (or more) users. The list of users is a comma separated parameter to the flag.
+   - **--projects** -- to migrate one (or more) project groups. The list of project groups is a comma separated parameter to the flag
 
-Edit the new `migration_deployment.yaml` file to change the variables associated with each of the migration
-information items listed in the previous paragraph. If desired, the migration type can be change from `full` to 
-either `files` or `db`.
+To start a migration named "_migration-0927-1_" for a single user with id "_janedoe_" use
 
-#### 6. Apply the deployment
+ > ```migrateMvi.py --name migration-0927-1 --config migConfig.json --migrate --users janedoe```
 
-Running `kubectl apply -f migration_deployment.yaml` will start the deployment and the migration container.
-All execution parameters have already been specified in the `migration_deployment.yaml` file.
+Note that the `--filesonly` flag can be used to migrate only the filesystem based artifacts.
 
-#### 7. Monitor progress.
+### 5. Monitor progress
 
 There are 2 ways to monitor progress.
 
-##### To see detail logging information:
- 1. `kubectl get pods | grep migration` to get the migration pod name.  The 1st field is the pod name; copy this value
- 2. `kubectl logs <POD-NAME>` will show logs for the migration pod. Note that `<POD-NAME>` should be replaced with the
-hame of the migration pod coped from step 1.
-
-The `kubectl logs` command shows the contents of the log at the time it is run. You can use `kubectl logs -f <POD-NAME>` 
-to "stream" the pod log and get continual updates.
-
 ##### To get progress summary information
 
-If the migration is for a standalone system, it is possible to get migration stage progress information you can
-do `ls -lrt /opt/ibm/vision/volume/data/logs/migrations/<DEPLOYMENT_NAME>`. This will provide an ordered list
-of the completed and running stages.
+To get summary information for the sample migration command in Step 4 above, use the command
 
-If the migration is for a clustered system, run `kubectl exec -it <POD_NAME> -- /usr/local/migration/migmgr.py
---deployment <DEPLOYMENT_NAME> --status`. The `<POD_NAME>` is the pod name as described in getting detailed logging
-information above. The `<deploymen_name>` is the same deployment name used in the `migration_deployment.yaml` file.
-The output from this command provides the exact same information as listing the directory contents previously
-described in this section.
+> ```migrateMvi.py --name migration-0927-1 --cofnig migConfig.json --status```
 
-#### 8. Cleanup the deployment.
+Note that collection of artifacts can take a few minutes. Migration of file artifacts can take several hours depending on
+the size of the server, the scope of the migration, and the bandwidth of the network connection between the two server
+environments. Currently, the summary status does not report percentage of files transferred.
 
-Use `kubectl delete deployment migration-0506-1` to delete the deployment. This command will also cause an active
-deployment to be canceled before it is deleted. Note that `migration-0506-1` should be the actual name of the
-deployment. If this name is forgotten you can use `kubectl get deployments` to find it again.
+##### To see detail logging information:
+ 1. `/opt/ibm/vision/bin/kubectl.sh get pods | grep <MIGRATION-NAME>` to get the migration pod name.
+     The 1st field is the pod name; copy this value
+ 2. `/opt/ibm/vision/bin/kubectl.sh logs <POD-NAME>` will show logs for the migration pod.
+    Note that `<POD-NAME>` should be replaced with the name of the migration pod copied from step 1.
+
+The `/opt/ibm/vision/bin/kubectl.sh logs` command shows the contents of the log at the time it is run. 
+You can use `/opt/ibm/vision/bin/kubectl.sh logs -f <POD-NAME>` to "stream" the pod log and get continual updates.
+The logs will show the files that are being migrated, so there will be lots of detail.
+
+### 6. Cleanup the deployment
+
+Once the migration completes, the deployment will not automatically be deleted. The deployment must be manually
+removed. This removal is done with the command
+
+> ```migrateMvi.py --name migration-0927-1 --cofnig migConfig.json --cleanup```
+
+As long as the deployment exists, the `migrateMvi.py --status` command can be reissued to see times for start and
+end of each step. Once the deployment is removed, obtaining summary status will no longer work.
+
+## Additional Information about `migrateMvi.py`
+
+The `migrateMvi.py` script always saves the deployment definition into a JSON file. It is possible to have
+this script only create the deployment definition file without applying it to start a migration. This technique
+may be needed to facilitate some "special" (unforeseen) "fix-ups" to the deployment definition before it is applied.
+Use the following command to only create the deployment definition
+
+> ```migrateMvi.py --name migration-0927-1 --cofnig migConfig.json --createDeployment```
+
+This technique can also be used to allow inspection of the deployment definition before it is applied.
