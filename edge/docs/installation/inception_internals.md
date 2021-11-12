@@ -26,7 +26,11 @@ In the simplest case, MVIE is installed as follows:
     ```
     cd <install root>
 
-    docker run --rm -v `pwd`:/opt/ibm/vision-edge --privileged -u root cp.icr.io/cp/visualinspection/vision-edge-inception:8.3.0
+    For version 8.3.0
+      docker run --rm -v `pwd`:/opt/ibm/vision-edge --privileged -u root cp.icr.io/cp/visualinspection/vision-edge-inception:8.3.0
+  
+    For version 8.4.0
+      docker run --rm -v `pwd`:/opt/ibm/vision-edge -e hostname=`hostname -f` --privileged -u root cp.icr.io/cp/visualinspection/vision-edge-inception:8.4.0
     ```
     - This will pull the inception image and run it.
     - The inception container will 
