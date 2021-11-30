@@ -25,4 +25,4 @@ This being the case, devices with less than 8GB RAM are not recommended.
 ## Other Considerations
 
 - Disk space to fit the Docker images and models. You might want to attach a SATA driver/SD card and set up Docker to store images/containers on that mount point.
-- If your GPU already has a model deployed and you try to deploy another, it's possible that there will not be enough available RAM for to deploy another model. When deploying a model using the UI, the failure to load the additional model will cause am error notification to this effect. When deploying directly via the DLE API or one of the command line clients, it will be necessary to monitor the DLE log to detect this condition.
+- If your GPU already has a model deployed and you try to deploy another, it's possible that there will not be enough available RAM to deploy another model. When deploying a model using the UI, the failure to load the additional model will cause an error notification to this effect. When deploying directly via the DLE API or one of the command line clients, it will be necessary to monitor the DLE log to detect this condition.
