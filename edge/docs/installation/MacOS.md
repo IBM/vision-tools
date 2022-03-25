@@ -9,3 +9,15 @@ Installation on MacOS follows the [basic inception process](inception_internals.
     source $HOST_SERVICE_ROOT/bin/license.sh
     ```
     in the `startedge.sh` script.
+
+- In order to get the shared memory size used to configure the database, the following line in the `startedge.sh` and `restartedge.sh` scripts should be changed:
+  - from:
+    ```
+    totmemkb=$(cat /proc/meminfo | grep MemTotal | awk '{ print $2 }')
+    ```
+  - to:
+    ```
+    totmemkb=$(sysctl hw.memsize | grep hw.memsiz | awk '{ print $2 }')
+    ```
+    *(Thanks to Huiyou Feng for this info)*
+    
