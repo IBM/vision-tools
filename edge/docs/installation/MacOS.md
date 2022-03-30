@@ -10,7 +10,7 @@ Installation on MacOS follows the [basic inception process](inception_internals.
     ```
     in the `startedge.sh` script.
 
-- In order to get the shared memory size used to configure the database, the following lines in the `startedge.sh` and `restartedge.sh` scripts should be changed:
+- In order to get the shared memory size used to configure the database, the following line in the `startedge.sh`, `stopedge.sh`, and `restartedge.sh` scripts should be changed:
   - from:
     ```
     HOST_ROOT=$(dirname $(realpath $BASH_SOURCE))
@@ -19,6 +19,7 @@ Installation on MacOS follows the [basic inception process](inception_internals.
     ```
     HOST_ROOT=$(dirname $(realpath $BASH_SOURCE:-$0))
     ```
+- and this line should be changed in the `startedge.sh` and `restartedge.sh` scripts
   - from:
     ```
     totmemkb=$(cat /proc/meminfo | grep MemTotal | awk '{ print $2 }')
