@@ -3,6 +3,8 @@
 ## Installation
 Installation on MacOS follows the [basic inception process](inception_internals.md) with the following deltas:
 
+> All of these changes should be made after running inception and before running startedge.sh for the first time.
+
 - MacOS does not include the language code in response to the `locale` command. This will prevent the license acceptance script from working.
   - The workaround is to comment out the line:
     ```
@@ -10,7 +12,7 @@ Installation on MacOS follows the [basic inception process](inception_internals.
     ```
     in the `startedge.sh` script.
 
-- In order to get the shared memory size used to configure the database, the following line in the `startedge.sh`, `stopedge.sh`, and `restartedge.sh` scripts should be changed:
+- Root installation directory, the following line in the `startedge.sh`, `stopedge.sh`, and `restartedge.sh` scripts should be changed:
   - from:
     ```
     HOST_ROOT=$(dirname $(realpath $BASH_SOURCE))
@@ -19,7 +21,7 @@ Installation on MacOS follows the [basic inception process](inception_internals.
     ```
     HOST_ROOT=$(dirname $(realpath $BASH_SOURCE:-$0))
     ```
-- and this line should be changed in the `startedge.sh` and `restartedge.sh` scripts
+- In order to get the shared memory size used to configure the database, this line in the `startedge.sh` and `restartedge.sh` scripts should be changed:
   - from:
     ```
     totmemkb=$(cat /proc/meminfo | grep MemTotal | awk '{ print $2 }')
