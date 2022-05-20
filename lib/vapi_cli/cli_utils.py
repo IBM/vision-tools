@@ -1,6 +1,6 @@
 # IBM_PROLOG_BEGIN_TAG
 #
-# Copyright 2019,2020 IBM International Business Machines Corp.
+# Copyright 2019,2022 IBM International Business Machines Corp.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ limit_skip_flag_descriptions = """   --limit        Optional parameter to limit 
                   returning results. Limit and Skip can be used to page
                   through results"""
 
+show_status_code = False
 show_httpdetail = False
 json_only = False
 host_name = None
@@ -172,6 +173,9 @@ def reportApiError(server, msg=None):
     This method also uses global variables 'scripting' and 'show_httpdetail' to control what output
     is generated."""
 
+    if show_status_code:
+        print(f'{{"status_code": {server.status_code()}}}', file=sys.stderr)
+
     try:
         #jsondata = textwrap.indent(json.dumps(server.json(), indent=2), " " * 8)
         jsondata = server.json()
@@ -209,6 +213,9 @@ def reportSuccess(server, msg=None, summaryFields=None):
     :param summaryFields -- list of fields to pull from json objects. If present, JSON will not be shown.
     """
     try:
+        if show_status_code:
+            print(f'{{"status_code": {server.status_code()}}}', file=sys.stderr)
+
         if not json_only:
             if summaryFields is not None:
                 cnt = 0
@@ -252,6 +259,7 @@ def set_output_controls(params):
 
     Output controls are set by parameter or by ENV variable."""
 
+    global show_status_code
     global show_httpdetail
     global json_only
 
@@ -279,6 +287,8 @@ def set_output_controls(params):
         show_httpdetail = "VAPI_HTTPDETAIL" in os.environ
     if not json_only:
         json_only = "VAPI_JSONONLY" in os.environ
+
+    show_status_code = "VAPI_SHOW_STATUS_CODE" in os.environ
 
 
 def print_http_detail(server):

@@ -1,6 +1,6 @@
 # IBM_PROLOG_BEGIN_TAG
 #
-# Copyright 2019,2020 IBM International Business Machines Corp.
+# Copyright 2019,2022 IBM International Business Machines Corp.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ from vapi.TrainedModels import TrainedModels
 from vapi.DeployedModels import DeployedModels
 from vapi.InferenceResults import InferenceResults
 from vapi.Users import Users
+from vapi.System import System
 
 
 class Base:
@@ -56,10 +57,6 @@ class Base:
 
         if token is None:
             token = os.getenv("VAPI_TOKEN")
-            if token is None:
-                msg = F"Could not find 'VAPI_TOKEN' information in environment or input parameters"
-                logger.error(" MVI:" + msg)
-                raise Exception(msg)
 
         if base_uri is None:
             # Try to construct the base_uri from VAPI_HOST and VAPI_INSTANCE
@@ -98,6 +95,7 @@ class Base:
             self.deployed_models = DeployedModels(self.server)
             self.dnnscripts = DnnScripts(self.server)
             self.users = Users(self.server)
+            self.system = System(self.server)
 
     def raw_http_request(self):
         """ Gets the raw HTTP request for the last request that was sent"""
