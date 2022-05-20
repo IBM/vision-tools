@@ -99,7 +99,7 @@ class Base:
 
     def raw_http_request(self):
         """ Gets the raw HTTP request for the last request that was sent"""
-        return self.server.get_raw_req()
+        return self.server.raw_http_req()
 
     def raw_http_response(self):
         """ Gets the raw response object for the last request that was sent"""

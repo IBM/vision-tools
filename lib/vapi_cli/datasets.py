@@ -35,11 +35,12 @@ server = None
 # ---  Create Operation  ---------------------------------------------
 create_usage = """
 Usage: 
-  datasets create --name=<dataset-name>
+  datasets create --name=<dataset-name> [--purpose=<purpose>]
 
 Where:
   --name    A required parameter that specifies the name of the dataset to
             be created
+  --purpose An optional parameter to set the 'purpose' of the dataset.
 
 Creates a new dataset with the given name."""
 
@@ -49,7 +50,9 @@ def create(params):
 
     Expected flags in 'params' are translated to Json Field names for creation content
     """
-    expectedArgs = {'--name': 'name'}
+    expectedArgs = {
+        '--name': 'name',
+        '--purpose': 'purpose'}
 
     kwargs = translate_flags(expectedArgs, params)
 
@@ -68,7 +71,7 @@ def create(params):
 # ---  Change Operation  ---------------------------------------------
 change_usage = """
 Usage:
-  datasets change (--dsid=<dataset-id> | --id=<dataset_id>) [--pgid=<project-group-id>]
+  datasets change (--dsid=<dataset-id> | --id=<dataset_id>) [--pgid=<project-group-id>] [--purpose=<purpose>]
 
 Where:
   --dsid | --id    Either '--dsid' or '--id' is required and identifies the dataset
@@ -76,6 +79,7 @@ Where:
   --pgid    An optional parameter that indicates the project group with
             which to associate the dataset. An empty string ("") will
             break any current association.
+  --purpose An optional parameter to change the 'purpose' field to the indicated value.
 
 Modifies metadata for a dataset. Currently the only modification available
 through this operation is the project group association."""
@@ -89,7 +93,9 @@ def update(params):
 
     dsid = params.get("--dsid", "missing_id")
 
-    expectedArgs = {'--pgid': 'project_group_id'}
+    expectedArgs = {
+        '--pgid': 'project_group_id',
+        '--purpose': 'purpose'}
     kwargs = translate_flags(expectedArgs, params)
 
     rsp = server.datasets.update(dsid, **kwargs)
