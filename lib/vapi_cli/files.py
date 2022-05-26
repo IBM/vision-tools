@@ -391,7 +391,7 @@ def savelabels(params):
             print(f"ERROR: Failed to convert label input to json; {e}", file=sys.stderr)
             return -1
 
-    rsp = server.object_labels.create(dsid, fileid, data)
+    rsp = server.object_labels.savelabels(dsid, fileid, data)
     if rsp is None:
         reportApiError(server, f"Failed to save labels for file {fileid} in dataset {dsid}")
     else:
