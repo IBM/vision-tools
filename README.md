@@ -3,8 +3,8 @@
 Maximo Visual Inspection (MVI) makes computer vision with deep learning more accessible to business users. MVI
 includes an intuitive toolset that empowers subject matter experts to label, train, and deploy deep learning vision
 models, without coding or deep learning expertise. This repo provides a developer client API and command line (CLI) for
-an existing installation. To learn more about Maximo Visual Inspection, check out the
-[IBM Marketplace](https://www.ibm.com/products/ibm-maximo-visual-inspection)
+an existing installation. To learn more about Maximo Visual Inspection, check out 
+[IBM Docs](https://www.ibm.com/docs/en/maximo-vi/8.5.0).
 
 The MVI API tools consists of two parts; a Python library piece and a command line (CLI) piece.
 The CLI piece uses the library piece to communicate with an MVI server. The CLI
