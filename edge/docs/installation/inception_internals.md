@@ -137,6 +137,8 @@ Setting `DEVMODE=true` in the `<install root>/volume/run/var/config/vision-edge.
   - true if set in a configuration file
   - true if setting equals the default value
 
+-  In MVI Edge 8.6.0, the `https://<hostname>/templates` and `https://<hostname>/videos` folders are exposed (read-only). These are both useful when creating Custom Pipelines.
+
 ### CPU Mode - Local Inference with No GPU
 By default, the vision-edge-dle container will not process inferences if there is no GPU on the edge node. Enabling CPU Mode will allow the DLE to run models on the CPU, which will run much slower than on GPU.
  To enable CPU Mode, set `DLE_ENABLE_CPU_FALLBACK=TRUE` in the vision-edge.properties file.
