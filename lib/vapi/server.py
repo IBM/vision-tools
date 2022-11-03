@@ -225,9 +225,9 @@ class Server(object):
     def __log_http_messages(self):
         """ Writes both the HTTP request and response messages to the log if traffic logging is turned on"""
         if self.log_http_traffic:
-            logger.info(self.http_request_str())
+            logger.debug(self.http_request_str())
             data = self.json()
             if data is not None:
-                logger.info(json.dumps(data, indent=2))
+                logger.debug(json.dumps(data, indent=2))
             else:
-                logger.info(self.raw_rsp().text)
+                logger.debug(self.raw_rsp().text)
