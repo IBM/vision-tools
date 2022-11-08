@@ -40,6 +40,7 @@ from vapi.DeployedModels import DeployedModels
 from vapi.InferenceResults import InferenceResults
 from vapi.Users import Users
 from vapi.System import System
+from vapi.SseMonitor import SseMonitor
 
 
 class Base:
@@ -94,6 +95,7 @@ class Base:
             self.trained_models = TrainedModels(self.server)
             self.deployed_models = DeployedModels(self.server)
             self.dnnscripts = DnnScripts(self.server)
+            self.sseMonitor = SseMonitor(self.server)
             self.users = Users(self.server)
             self.system = System(self.server)
 
