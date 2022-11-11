@@ -123,7 +123,7 @@ Usage:
                         [--maxclasses=<integer>] [--caption=<true_or_false>]
                         [--wait=<true_or_false>] [--annotatefile=<output_file_path>]
                         [--markwidth=<integer>]  [--fontscale=<number>]
-                        [--color=<annotation-mark-color>]
+                        [--color=<annotation-mark-color>] [--minanomaly=<min-score>]
                         <path-to-file>
 
 Where:
@@ -170,6 +170,9 @@ Where:
              drawn on the annotated image. Possible values are 'red', 'blue', 'green',
              'yellow', 'magenta', 'cyan', and 'brightgreen'.
              The default is red.
+  --minanomaly Optional parameter indicating the minimum anomaly score required for an
+             inference to mark a region in an object as being anomalous. This flag applies
+             only to anomaly models.
   <path-to-file>     Required parameter to identify the path to the file on which inference
              is to be performed.
 
@@ -191,6 +194,7 @@ def infer(params):
         '--polygons': 'containPolygon',
         'maxclasses': 'clsnum',
         'caption': 'genCaption',
+        '--minanomaly': 'anomalyThreshold',
         'wait': 'waitForResults'
     }
     kwargs = translate_flags(expectedArgs, params)

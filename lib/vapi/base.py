@@ -40,6 +40,7 @@ from vapi.DeployedModels import DeployedModels
 from vapi.InferenceResults import InferenceResults
 from vapi.Users import Users
 from vapi.System import System
+from vapi.SseMonitor import SseMonitor
 
 
 class Base:
@@ -94,12 +95,13 @@ class Base:
             self.trained_models = TrainedModels(self.server)
             self.deployed_models = DeployedModels(self.server)
             self.dnnscripts = DnnScripts(self.server)
+            self.sseMonitor = SseMonitor(self.server)
             self.users = Users(self.server)
             self.system = System(self.server)
 
     def raw_http_request(self):
         """ Gets the raw HTTP request for the last request that was sent"""
-        return self.server.get_raw_req()
+        return self.server.raw_http_req()
 
     def raw_http_response(self):
         """ Gets the raw response object for the last request that was sent"""

@@ -59,6 +59,20 @@ class Datasets:
         uri = f"/datasets/{dsid}"
         return self.server.put(uri, json=kwargs)
 
+    def action(self, dsid, action, **kwargs):
+        """ Perform the action identified in the '**kwargs'
+
+        :param dsid   -- UUID of the targeted dataset
+        :param action -- name of the dataset action to perform
+        :param kwargs -- optional fields for the update payload. See the API
+                         documentation more information about dataset 'actions'."""
+
+        uri = f"/datasets/{dsid}/action"
+
+        params = {"action": action}
+        params.update(kwargs)
+        return self.server.post(uri, json=params)
+
     def delete(self, dsid):
         """ Delete the indicated dataset
 

@@ -42,14 +42,14 @@ ds_obj_label_description = """   --dsid    Required parameter identifying the da
 create_usage = """
 Usage:   object_labels create --dsid=<dataset_id>  --fileid=<file_id>
                        --tagid=<tag_id>
-                       (--json_file=<json_file> | <json_string>)
+                       (--label_file=<json_file> | <json_string>)
 
 Where:
    --dsid   Required parameter that identifies the dataset into which the
              tag is to be loaded
    --fileid   Required parameter identifying the file to which the label
              belongs.
-   --json_file    Optional parameter identifying the file that contains the
+   --label_file    Optional parameter identifying the file that contains the
              Json label information. Only one of '--label_file' or 
              '<json_string>' must be supplied.
    <json_string>  Optional string containing the json for the label.
@@ -60,7 +60,7 @@ Creates a new object label on the given file in the given dataset.
 
 
 def create(params):
-    """Handles the 'create' operation for adding an object tag to a dataset.
+    """Handles the 'create' operation for adding one or more object labels to a dataset file.
     """
 
     dsid = params.get("--dsid", "missing_id")

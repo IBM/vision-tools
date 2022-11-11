@@ -22,6 +22,9 @@ import re
 import requests
 import logging as logger
 
+from urllib3.exceptions import InsecureRequestWarning
+from urllib3 import disable_warnings
+
 
 class Server(object):
     __version__ = "0.1"
@@ -144,6 +147,8 @@ class Server(object):
             url = f"https://{self.baseurl}/{uri}"
 
         try:
+            disable_warnings(InsecureRequestWarning)
+
             self.last_rsp = requests.get(url, verify=False, headers=headers, **kwargs)
             self.last_failure = None
         except requests.exceptions.ConnectionError as e:
@@ -169,6 +174,8 @@ class Server(object):
         url = self.baseurl + uri
 
         try:
+            disable_warnings(InsecureRequestWarning)
+
             self.last_rsp = requests.post(url, verify=False, headers=headers, **kwargs)
             self.last_failure = None
         except requests.exceptions.ConnectionError as e:
@@ -190,6 +197,8 @@ class Server(object):
         url = self.baseurl + uri
 
         try:
+            disable_warnings(InsecureRequestWarning)
+
             self.last_rsp = requests.delete(url, verify=False, headers=headers, **kwargs)
             self.last_failure = None
         except requests.exceptions.ConnectionError:
@@ -210,6 +219,8 @@ class Server(object):
         url = self.baseurl + uri
 
         try:
+            disable_warnings(InsecureRequestWarning)
+
             self.last_rsp = requests.put(url, verify=False, headers=headers, **kwargs)
             self.last_failure = None
         except requests.exceptions.ConnectionError:
@@ -225,9 +236,9 @@ class Server(object):
     def __log_http_messages(self):
         """ Writes both the HTTP request and response messages to the log if traffic logging is turned on"""
         if self.log_http_traffic:
-            logger.info(self.http_request_str())
+            logger.debug(self.http_request_str())
             data = self.json()
             if data is not None:
-                logger.info(json.dumps(data, indent=2))
+                logger.debug(json.dumps(data, indent=2))
             else:
-                logger.info(self.raw_rsp().text)
+                logger.debug(self.raw_rsp().text)

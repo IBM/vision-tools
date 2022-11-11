@@ -294,10 +294,24 @@ def set_output_controls(params):
 def print_http_detail(server):
     httpstatus = server.status_code()
     httpreq = server.http_request_str()
-    print("========   HTTP Detail   ========", file=sys.stderr)
-    print("    HTTP status code : {}".format(httpstatus), file=sys.stderr)
-    #    print("    HTTP response:", file=sys.stderr)
-    #    print(server.raw_http_response().text, file=sys.stderr)
-    print("    HTTP request:", file=sys.stderr)
-    print(httpreq, file=sys.stderr)
-    print("========", file=sys.stderr)
+    if json_only:
+        raw_req = server.raw_http_request()
+        request_info = {
+            "method": raw_req.method,
+            "url": raw_req.url,
+            "headers": dict(raw_req.headers)
+            #"body": raw_req.body
+        }
+        output = {
+            "http_status_code": httpstatus,
+            "request_info": request_info
+        }
+        print(json.dumps(output, indent=2), file=sys.stderr)
+    else:
+        print("========   HTTP Detail   ========", file=sys.stderr)
+        print("    HTTP status code : {}".format(httpstatus), file=sys.stderr)
+        #    print("    HTTP response:", file=sys.stderr)
+        #    print(server.raw_http_response().text, file=sys.stderr)
+        print("    HTTP request:", file=sys.stderr)
+        print(httpreq, file=sys.stderr)
+        print("========", file=sys.stderr)
