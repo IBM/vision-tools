@@ -40,7 +40,8 @@ ds_file_description = """   --dsid     Required parameter identifying the datase
 
 #---  Upload Operation  ---------------------------------------------
 upload_usage = """
-Usage:   files upload --dsid=<dataset_id>  [--metadata=<String>] [--labels=<String>] <file_paths>...
+Usage:   files upload --dsid=<dataset_id>  [--metadata=<String>] [--labels=<String>]
+               [--uploadtype=<String>] <file_paths>...
 
 Where:
    --dsid   Required parameter that identifies the dataset into which the
@@ -50,6 +51,8 @@ Where:
    --labels    Optional parameter that contains a Json Array of label
             annotations to associate with the uploaded file. NOTE that
             labels cannot be applied to multiple files.
+   --uploadtype String identifying the generation method for the file. Possible
+            values are `upload` (the default), `inference`, or `inspection`.
    <file_paths>   Space separated list of file paths to upload
 
 Uploads one or more files to a dataset.
@@ -64,6 +67,7 @@ def upload(params):
 
     dsid = params.get("--dsid", "missing_id")
     expectedArgs = {
+        '--uploadtype': 'upload_type',
         '--metadata': 'user-metadata',
         '--labels': 'labels'
     }
