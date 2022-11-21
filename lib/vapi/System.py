@@ -23,6 +23,12 @@ class System:
     def __init__(self, server):
         self.server = server
 
+    def dvc_info(self):
+        """ Get MVI system device info"""
+
+        uri = f"/system/device-info"
+        return self.server.get(uri)
+
     def info(self):
         """ Get MVI system info"""
 

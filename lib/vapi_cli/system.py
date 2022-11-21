@@ -55,6 +55,24 @@ def info(params):
         reportSuccess(server)
 
 
+# ---  dvc_info Operation  -----------------------------------------------
+dvc_info_usage = f"""
+Usage:  system dvc-info
+
+Gets server device (aka GPU) information.
+"""
+
+
+def dvc_info(params):
+    """ Gets MVI System device info"""
+
+    rsp = server.system.dvc_info()
+    if rsp is None or rsp.get("result", "success") != "success":
+        reportApiError(server, f"Failed to get system Info.")
+    else:
+        reportSuccess(server)
+
+
 # ---  Version Operation  --------------------------------------------
 version_usage = f"""
 Usage:  system version
@@ -72,6 +90,7 @@ def version(params):
     else:
         reportSuccess(server)
 
+
 cmd_usage = f"""
 Usage:  system {cli_utils.common_cmd_flags} <operation> [<args>...]
 
@@ -79,18 +98,21 @@ Where:
 {cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
-      info    -- gets system information
-      version -- gets system version information
+      dvc-info -- gets device (GPU) information
+      info     -- gets system information
+      version  -- gets system version information
 
 Use 'system <operation> --help' for more information on a specific command."""
 
 usage_stmt = {
     "usage": cmd_usage,
+    "dvc-info": dvc_info_usage,
     "info": info_usage,
     "version": version_usage
 }
 
 operation_map = {
+    "dvc-info": dvc_info,
     "info": info,
     "version": version
 }
