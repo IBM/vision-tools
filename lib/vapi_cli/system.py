@@ -17,7 +17,7 @@
 #  limitations under the License.
 #
 #  IBM_PROLOG_END_TAG
-
+import json
 import logging as logger
 import sys
 import vapi
@@ -91,6 +91,34 @@ def version(params):
         reportSuccess(server)
 
 
+# ---  Version Operation  --------------------------------------------
+sse_monitor_usage = f"""
+Usage:  system sse_monitor
+
+Loops continually monitoring and reporting SSEs
+"""
+
+
+def sse_monitor(params):
+    """ Continually monitors and reports SSE."""
+
+    sse_stream = server.sseMonitor.report()
+
+    if sse_stream is not None:
+        try:
+            for sse in sse_stream:
+                event_type = sse["event"]
+                logger.debug(f"@@@ {event_type}")
+
+                # Ignore PING SSE's
+                if event_type != "ping":
+                    print(json.dumps(sse, indent=2))
+        except KeyboardInterrupt as e:
+            logger.debug("SSE stream aborted.")
+    else:
+        print("Failed to connect to the SSE Stream.")
+
+
 cmd_usage = f"""
 Usage:  system {cli_utils.common_cmd_flags} <operation> [<args>...]
 
@@ -101,6 +129,7 @@ Where:
       dvc-info -- gets device (GPU) information
       info     -- gets system information
       version  -- gets system version information
+      sse_monitor -- shows SSE as they are reported from the server
 
 Use 'system <operation> --help' for more information on a specific command."""
 
@@ -108,13 +137,15 @@ usage_stmt = {
     "usage": cmd_usage,
     "dvc-info": dvc_info_usage,
     "info": info_usage,
-    "version": version_usage
+    "version": version_usage,
+    "sse_monitor": sse_monitor_usage
 }
 
 operation_map = {
     "dvc-info": dvc_info,
     "info": info,
-    "version": version
+    "version": version,
+    "sse_monitor": sse_monitor
 }
 
 

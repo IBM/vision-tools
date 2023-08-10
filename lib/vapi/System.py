@@ -41,3 +41,4 @@ class System:
         uri = f"/version-info"
         return self.server.get(uri)
 
+
