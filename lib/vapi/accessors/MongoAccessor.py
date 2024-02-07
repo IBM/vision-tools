@@ -42,9 +42,12 @@ class MongoAccessor:
     For external cluster, a 'cluster' object is required to access the external cluster.
     """
 
-    def __init__(self, creds=None, mongoService=None, cluster=None):
+    def __init__(self, creds=None, mongoService=None, cluster=None, mongoDbName="DLAAS", mongoConnectionString=None):
+        logging.debug(f"MongoAccessor: creds={creds}, mongoService={mongoService}, cluster={cluster}, mongoDbName={mongoDbName}, mongoConnectionString={mongoConnectionString}")
         self.mongoDbCreds = creds
         self.mongoService = mongoService
+        self.mongoConnectionString = mongoConnectionString
+        self.mongoDbName = mongoDbName
         self.cluster = cluster
         self.tunnelProcess = None
         self.mongoClient = None
@@ -65,10 +68,16 @@ class MongoAccessor:
         logging.info("Connecting to mongo")
 
         user, passwd = self.getMongoDbCredentials()
-        self.loginToDb(user, passwd, hostname=self.getMongoHostName())
+        logging.debug(f"""mongoDbName="{self.mongoDbName}".""")
+        self.loginToDb(user, passwd, hostname=None, database=self.mongoDbName,
+                       connectionString=self.mongoConnectionString)
 
     def getMongoDbCredentials(self):
         """ Returns mongoDB username and password based upon provided access info."""
+
+        # If connection string is provided, the creds should be in the string
+        if self.mongoConnectionString is not None and len(self.mongoConnectionString) != 0:
+            return "", ""
 
         # If mongoDb credentials provided to the script, use those
         if self.mongoDbCreds is not None:
@@ -150,20 +159,24 @@ class MongoAccessor:
 
         self.tunnelProcess = subprocess.Popen(cmdArgs, stdout=subprocess.PIPE)
 
-    def loginToDb(self, user, passwd, hostname="localhost", database="DLAAS"):
-        """ Logins into MongoDB and setups access to the DLAAS database."""
-        logging.debug(f"logging into mongo db '{database}', at '{hostname}' as '{user}'")
+    def loginToDb(self, user, passwd, hostname="localhost", database="DLAAS", connectionString=None):
+        """ Logins into MongoDB and setups access to the MVI database."""
+        logging.debug(f"logging into mongo db='{database}', at '{hostname}' as '{user}'; connectionString='{connectionString}'")
 
-        # The auth mechanism changed when mondogDB was upgraded during the move to MAS
-        if self.mviVersion == 1:
-            authProtocol = "MONGODB-CR"
+        if connectionString is None:
+            # The auth mechanism changed when mongoDB was upgraded during the move to MAS
+            if self.mviVersion == 1:
+                authProtocol = "MONGODB-CR"
+            else:
+                authProtocol = "SCRAM-SHA-1"
+            uri = f"mongodb://{user}:{passwd}@{hostname}:27017/?authSource={database}&authMechanism={authProtocol}"
         else:
-            authProtocol = "SCRAM-SHA-1"
+            uri = connectionString
 
-        uri = f"mongodb://{user}:{passwd}@{hostname}:27017/?authSource={database}&authMechanism={authProtocol}"
         self.mongoClient = pymongo.MongoClient(uri)
         logging.debug(f"db conn={self.mongoClient}")
         self.mviDatabase = self.mongoClient[database]
+        logging.debug(f"database={database}, DB = {self.mongoClient[database]}; mviDB={self.mviDatabase}")
 
     def getMongoClient(self):
         return self.mongoClient
