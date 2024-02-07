@@ -144,7 +144,7 @@ def insertDocuments(dbCollection, collectionName, documents):
         try:
             if fixUpNeeded:
                 fixUpMap[collectionName](doc)
-            dbCollection.insert(doc)
+            dbCollection.insert_one(doc)
             consecutiveInserts += 1
         except pymongo.errors.DuplicateKeyError:
             logging.warning(f"""{collectionName}: duplicate Key f{doc["_id"]}""")
