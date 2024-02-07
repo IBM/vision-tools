@@ -46,7 +46,6 @@ import logging
 import shutil
 
 import vapi.accessors.MongoAccessor as MongoAccessor
-import vapi.accessors.ClusterAccessor as ClusterAccessor
 import zipfile
 
 clusterPresent = False
@@ -63,14 +62,9 @@ def main():
     if args is not None:
         setLoggingControls(args.logLevel)
         try:
-            with ClusterAccessor.ClusterAccessor(standalone=not clusterPresent, clusterUrl=args.cluster,
-                                                 user=args.ocpUser, password=args.ocpPasswd, token=args.ocpToken,
-                                                 project=args.project) as cluster:
-                with MongoAccessor.MongoAccessor(mongoDbCreds, mongoService=args.mongoService, cluster=cluster) as ma:
-                    backupMongoCollections(ma)
-        except ClusterAccessor.OcpException as oe:
-            print(oe)
-            exit(2)
+            with MongoAccessor.MongoAccessor(mongoDbCreds, mongoDbName=args.mongoDbName,
+                                             mongoConnectionString=args.mongoConnectionString) as ma:
+                backupMongoCollections(ma)
         except MongoAccessor.MviMongoException as me:
             print(me)
             exit(2)
@@ -84,6 +78,7 @@ def backupMongoCollections(mongo):
     zipFileName = f"{args.zipfile}.zip"
     backupFile = zipfile.ZipFile(zipFileName, mode="w", compression=zipfile.ZIP_DEFLATED)
     dbCollections = mongo.getMviDatabase().list_collection_names()
+    logging.debug(f"DB collections = {dbCollections}")
 
     from datetime import datetime
     now = datetime.now()
@@ -107,7 +102,7 @@ def backupCollection(mongo, zipFile, collection):
     """ Extract collection from DB, write it to a file, and add file to the zip file."""
 
     dbCollection = mongo.getMviDatabase()[collection]
-    logging.info(f"Backing up {dbCollection.count()} documents from collection {collection}.")
+    logging.info(f"Backing up {dbCollection.count_documents({})} documents from collection {collection}.")
 
     documents = dbCollection.find({})
     fileName = f"{collection}"
@@ -128,6 +123,9 @@ def backupCollection(mongo, zipFile, collection):
     os.remove(fileName)
 
 
+#TODO: overhaul the parameters for external mongo DB
+#TODO: currently need unecessary params for mongouser and mongopassword to get through code correctly.
+#TODO: must have mongoconnectionstring and mongodbname
 def getInputs():
     """ parse command line options using argparse
 
@@ -138,40 +136,26 @@ def getInputs():
     parser = argparse.ArgumentParser(description="Tool to backup an MVI MongoDB to a zip file.",
                                      formatter_class=argparse.RawTextHelpFormatter,
                                      epilog='''
-To backup a pre-8.0.0 MVI installation, you must specify '--mongouser'
-and '--mongopassword'; but the OCP cluster related parameters ('--cluster_url',
-'--ocpuser', and '--ocppasswd, and '--ocptoken') should not be present.
-
-For a post 8.0.0 MVI installation, either the OCP cluster related parameters
-are required, OR you must be logged into the OCP cluster AND have set the 
-project to the MVI project. The OCP user information must have enough 
-authority to allow setting up a route to the mongoDB pod and to access the 
-MongoDB credentials (typically an admin user).
-
-If you are already logged into an OCP cluster, do not specify '--cluster_url', 
-'--ocpuser', and '--ocppasswd'. However, if one these flags is specified, all 
-must be specified. In this case, the script will login to the OCP cluster and 
-then logout when done.
-
-Note that '--ocptoken' can be used instead of '--ocpuser' and '--ocppasswd'. 
-If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
+    This script currently only works on MVI 8.8.x and up installations.
+                                     
+    You must supply '--mongouser', '--mongopassword', '--mongoconnectionstring', and '--mongodbname' flags.
+    All other parameters are no longer used, but have not been cleaned up yet.
+    
+    The '--mongouser', '--mongopassword' can be obtained from the "*-mongocfg-system-binding-3faa6f5e" secret
+    in the MVI project to be backed up.
+    
+    If the mongo instance is not publicly accesssible, tunnels must be setup to reach each of the replica
+    hosts.
 ''')
-    parser.add_argument('--project', action="store", dest="project", type=str, required=False,
-                        help="Target MVI project in the cluster.")
-    parser.add_argument("--mongouser", action="store", dest="mongouser", type=str, required=False,
+    parser.add_argument("--mongouser", action="store", dest="mongouser", type=str, required=True,
                         help="MongoDb Admin user for a pre-8.0.0 installation.")
-    parser.add_argument("--mongopassword", action="store", dest="mongopw", type=str, required=False,
+    parser.add_argument("--mongopassword", action="store", dest="mongopw", type=str, required=True,
                         help="MongoDb Admin password for a pre-8.0.0 installation.")
-    parser.add_argument("--mongoservice", action="store", dest="mongoService", type=str, required=False,
-                        help="Service name for the mongoDb service in the cluster (only valid when running in a POD).")
-    parser.add_argument('--cluster_url', action="store", dest="cluster", type=str, required=False,
-                        help="URL to OCP cluster.")
-    parser.add_argument('--ocptoken', action="store", dest="ocpToken", type=str, required=False,
-                        help="API Token for OCP cluster admin.")
-    parser.add_argument('--ocpuser', action="store", dest="ocpUser", type=str, required=False,
-                        help="Username for OCP cluster admin.")
-    parser.add_argument('--ocppasswd', action="store", dest="ocpPasswd", type=str, required=False,
-                        help="Password of OCP admin user.")
+    parser.add_argument("--mongoconnectionstring", action="store", dest="mongoConnectionString",
+                        type=str, required=True,
+                        help="Name of the MongoDB containing the MVI documents to be backed-up.")
+    parser.add_argument('--mongodbname', action="store", dest="mongoDbName", type=str, required=True,
+                        help="Name of the mongo DB containing the MVI data to be backed up.")
     parser.add_argument('--workDir', action="store", dest="workDir", type=str, required=False, default=None,
                         help="directory to use for work files.")
     parser.add_argument('--log', action="store", dest="logLevel", type=str, required=False, default="info",
@@ -201,23 +185,8 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
         results = None
 
     global clusterPresent
-    if results is not None:
-        clusterPresent = results.cluster is not None
-        ocpTokenPresent = results.ocpToken is not None
-        ocpUserPresent = results.ocpUser is not None
-        ocpPasswdPresent = results.ocpPasswd is not None
+    clusterPresent = False
 
-        if clusterPresent or ocpUserPresent or ocpPasswdPresent or ocpTokenPresent:
-            if mongoDbCreds is not None:
-                print("Both mongo user credentials and OCP access information were detected. "
-                      "You cannot specify both sets of info.", file=sys.stderr)
-                results = None
-            elif not (clusterPresent and ((ocpUserPresent and ocpPasswdPresent) or ocpTokenPresent)):
-                print("If any of '--cluster_url', '--ocpuser', and '--ocppasswd' are specified, all must be specified.",
-                      file=sys.stderr)
-                print(f"cluster={clusterPresent}, user={ocpUserPresent}, pw={ocpPasswdPresent}, token={ocpTokenPresent}")
-                parser.print_help(sys.stderr)
-                results = None
     return results
 
 
