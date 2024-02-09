@@ -84,20 +84,40 @@ if __name__ == "__main__":
             if argv is None:
                 argv = ["--help"]
 
-            # handle abbreviated entities
+            # handle abbreviated resources
+            possible_resource_count = 1
             resource = args["<resource>"]
-            if args["<resource>"] not in resource_map:
+            if resource not in resource_map:
                 matches = [resource_map[i] for i in resource_map.keys() if i.startswith(resource)]
-                if len(matches) == 1:
+                possible_resource_count = len(matches)
+                if possible_resource_count == 1:
                     args["<resource>"] = matches[0]
-                else:
-                    # Generate correct error message and exit (with usage statement)
-                    if len(matches) > 1:
-                        print(f"ERROR: resource '{resource}' not unique; matches={matches}")
+                elif possible_resource_count == 0:
+                    # try to match on 1st arg; it should be the operation, but this will handle
+                    # the case that the user swapped resource and operation.
+                    possible_resource = argv[0] if argv else "nothing"
+                    if possible_resource not in resource_map:
+                        matches = [resource_map[i] for i in resource_map.keys() if i.startswith(possible_resource)]
+                        possible_resource_count = len(matches)
+                        if possible_resource_count == 1:
+                            # got a single match, swap resource and operation in the inputs
+                            argv[0] = resource
+                            args["<resource>"] = matches[0]
                     else:
-                        print(f"ERROR: Unknown resource -- {resource}", file=sys.stderr)
-                    print(usage_stmt, file=sys.stderr)
-                    exit(1)
+                        # exact resource match on operation; swap resource and operation in the inputs
+                        possible_resource_count = 1
+                        argv[0] = resource
+                        args["<resource>"] = possible_resource
+
+
+            if possible_resource_count != 1:
+                # Generate correct error message and exit (with usage statement)
+                if possible_resource_count > 1:
+                    print(f"ERROR: resource '{resource}' not unique; matches={matches}")
+                else:
+                    print(f"ERROR: Unknown resource -- {resource}", file=sys.stderr)
+                print(usage_stmt, file=sys.stderr)
+                exit(1)
 
             resource = resource_map.get(args["<resource>"], None)
 

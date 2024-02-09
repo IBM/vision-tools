@@ -35,6 +35,12 @@ class System:
         uri = f"/system"
         return self.server.get(uri)
 
+    def profiles(self):
+        """ Get MVI workspace related info."""
+
+        uri = f"/profiles"
+        return self.server.get(uri)
+    
     def version(self):
         """ Get MVI version info"""
 

@@ -73,6 +73,24 @@ def dvc_info(params):
         reportSuccess(server)
 
 
+# ---  dvc_info Operation  -----------------------------------------------
+profile_usage = f"""
+Usage:  system profile
+
+Gets server operational info.
+"""
+
+
+def profile(params):
+    """ Gets MVI System operational info."""
+
+    rsp = server.system.profiles()
+    if rsp is None or not server.rsp_ok():
+        reportApiError(server, f"Failed to get profile Info.")
+    else:
+        reportSuccess(server)
+
+
 # ---  Version Operation  --------------------------------------------
 version_usage = f"""
 Usage:  system version
@@ -128,6 +146,7 @@ Where:
    <operation> is required and must be one of:
       dvc-info -- gets device (GPU) information
       info     -- gets system information
+      profile  -- gets system operational information
       version  -- gets system version information
       sse_monitor -- shows SSE as they are reported from the server
 
@@ -137,6 +156,7 @@ usage_stmt = {
     "usage": cmd_usage,
     "dvc-info": dvc_info_usage,
     "info": info_usage,
+    "profile": profile_usage,
     "version": version_usage,
     "sse_monitor": sse_monitor_usage
 }
@@ -144,6 +164,7 @@ usage_stmt = {
 operation_map = {
     "dvc-info": dvc_info,
     "info": info,
+    "profile": profile,
     "version": version,
     "sse_monitor": sse_monitor
 }
