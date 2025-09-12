@@ -17,7 +17,7 @@
 #  limitations under the License.
 #
 #  IBM_PROLOG_END_TAG
-
+import json
 import logging as logger
 import sys
 import vapi
@@ -26,8 +26,8 @@ from vapi_cli.cli_utils import reportSuccess, reportApiError, translate_flags
 
 # All of Vision Tools requires python 3.6 due to format string
 # Make the check in a common location
-if sys.hexversion < 0x03060000:
-    sys.exit("Python 3.6 or newer is required to run this program.")
+if sys.hexversion < 0x03090000:
+    sys.exit("Python 3.9 or newer is required to run this program.")
 
 info_usage = """
 Usage:
@@ -55,6 +55,42 @@ def info(params):
         reportSuccess(server)
 
 
+# ---  dvc_info Operation  -----------------------------------------------
+dvc_info_usage = f"""
+Usage:  system dvc-info
+
+Gets server device (aka GPU) information.
+"""
+
+
+def dvc_info(params):
+    """ Gets MVI System device info"""
+
+    rsp = server.system.dvc_info()
+    if rsp is None or rsp.get("result", "success") != "success":
+        reportApiError(server, f"Failed to get system Info.")
+    else:
+        reportSuccess(server)
+
+
+# ---  dvc_info Operation  -----------------------------------------------
+profile_usage = f"""
+Usage:  system profile
+
+Gets server operational info.
+"""
+
+
+def profile(params):
+    """ Gets MVI System operational info."""
+
+    rsp = server.system.profiles()
+    if rsp is None or not server.rsp_ok():
+        reportApiError(server, f"Failed to get profile Info.")
+    else:
+        reportSuccess(server)
+
+
 # ---  Version Operation  --------------------------------------------
 version_usage = f"""
 Usage:  system version
@@ -72,6 +108,35 @@ def version(params):
     else:
         reportSuccess(server)
 
+
+# ---  Version Operation  --------------------------------------------
+sse_monitor_usage = f"""
+Usage:  system sse_monitor
+
+Loops continually monitoring and reporting SSEs
+"""
+
+
+def sse_monitor(params):
+    """ Continually monitors and reports SSE."""
+
+    sse_stream = server.sseMonitor.report()
+
+    if sse_stream is not None:
+        try:
+            for sse in sse_stream:
+                event_type = sse["event"]
+                logger.debug(f"@@@ {event_type}")
+
+                # Ignore PING SSE's
+                if event_type != "ping":
+                    print(json.dumps(sse, indent=2))
+        except KeyboardInterrupt as e:
+            logger.debug("SSE stream aborted.")
+    else:
+        print("Failed to connect to the SSE Stream.")
+
+
 cmd_usage = f"""
 Usage:  system {cli_utils.common_cmd_flags} <operation> [<args>...]
 
@@ -79,20 +144,29 @@ Where:
 {cli_utils.common_cmd_flag_descriptions}
 
    <operation> is required and must be one of:
-      info    -- gets system information
-      version -- gets system version information
+      dvc-info -- gets device (GPU) information
+      info     -- gets system information
+      profile  -- gets system operational information
+      version  -- gets system version information
+      sse_monitor -- shows SSE as they are reported from the server
 
 Use 'system <operation> --help' for more information on a specific command."""
 
 usage_stmt = {
     "usage": cmd_usage,
+    "dvc-info": dvc_info_usage,
     "info": info_usage,
-    "version": version_usage
+    "profile": profile_usage,
+    "version": version_usage,
+    "sse_monitor": sse_monitor_usage
 }
 
 operation_map = {
+    "dvc-info": dvc_info,
     "info": info,
-    "version": version
+    "profile": profile,
+    "version": version,
+    "sse_monitor": sse_monitor
 }
 
 

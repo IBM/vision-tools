@@ -4,7 +4,7 @@ import logging as logger
 
 class SseMonitor:
     """
-    SseMonitor is different than other VAPI resources. It can only report SSEs.
+    SseMonitor is different from other VAPI resources. It can only report SSEs.
     Reporting uses streaming so as each SSE is received, it is 'yielded' to the
     caller.
     """

@@ -39,8 +39,8 @@ from .InferenceResults import InferenceResults
 from .Users import Users
 
 
-def connect_to_server(host=None, token=None, instance=None, log_http_traffic=False):
-    return Base(host, token, instance, log_http_traffic)
+def connect_to_server(host=None, token=None, base_uri=None, instance=None, log_http_traffic=False):
+    return Base(host, token, instance, log_http_traffic, base_uri=base_uri)
 
 
 logger.getLogger(__name__).addHandler(NullHandler())

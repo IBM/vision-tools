@@ -23,15 +23,28 @@ class System:
     def __init__(self, server):
         self.server = server
 
+    def dvc_info(self):
+        """ Get MVI system device info"""
+
+        uri = f"/system/device-info"
+        return self.server.get(uri)
+
     def info(self):
         """ Get MVI system info"""
 
         uri = f"/system"
         return self.server.get(uri)
 
+    def profiles(self):
+        """ Get MVI workspace related info."""
+
+        uri = f"/profiles"
+        return self.server.get(uri)
+    
     def version(self):
         """ Get MVI version info"""
 
         uri = f"/version-info"
         return self.server.get(uri)
+
 
