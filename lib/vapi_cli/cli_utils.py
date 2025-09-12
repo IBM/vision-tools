@@ -30,8 +30,8 @@ import logging as logger
 
 # All of the Vision Tools require python 3.6 due to format string
 # Make the check in a common location
-if sys.hexversion < 0x03060000:
-    sys.exit("Python 3.6 or newer is required to run this program.")
+if sys.hexversion < 0x03090000:
+    sys.exit("Python 3.9 or newer is required to run this program.")
 
 
 # Common flag strings
