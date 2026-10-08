@@ -109,7 +109,7 @@ class MongoAccessor:
             secret = string.split()[0]
             if secret == "vision-secrets" or re.search(r"-credentials-internal-visualinspection", secret):
                 secretName = secret
-                logging.debug(f"Matched secret name {secretName}")
+                logging.debug("Matched expected MongoDB secret entry.")
                 break
         return secretName
 
