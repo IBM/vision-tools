@@ -85,7 +85,7 @@ class MongoAccessor:
                 jsonData = json.loads(stdout.decode('utf-8'))
                 userName = base64.b64decode(jsonData["data"]["mongodb-admin-username"]).decode("utf-8")
                 password = base64.b64decode(jsonData["data"]["mongodb-admin-password"]).decode("utf-8")
-                logging.debug(f"user={userName}, pw={password}")
+                logging.debug(f"user={userName}, pw=<redacted>")
             else:
                 logging.error(f"Failed to get Mongo info -- {cmdArgs}")
                 logging.error(f"output = {process.stderr}")
