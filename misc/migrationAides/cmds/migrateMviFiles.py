@@ -190,7 +190,7 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
             if not (clusterPresent and ((ocpUserPresent and ocpPasswdPresent) or ocpTokenPresent)):
                 print("If any of '--cluster_url', '--ocpuser', '--ocppasswd', or '--ocptoken' are specified, all must be specified.",
                       file=sys.stderr)
-                print(f"cluster={clusterPresent}, user={ocpUserPresent}, pw={ocpPasswdPresent}, token={ocpTokenPresent}")
+                print("Invalid authentication argument combination provided.", file=sys.stderr)
                 parser.print_help(sys.stderr)
                 results = None
     return results
