@@ -215,7 +215,7 @@ If '--ocptoken' is present, '--ocpuser' and '--ocppasswd' are ignored."
             elif not (clusterPresent and ((ocpUserPresent and ocpPasswdPresent) or ocpTokenPresent)):
                 print("If any of '--cluster_url', '--ocpuser', and '--ocppasswd' are specified, all must be specified.",
                       file=sys.stderr)
-                print(f"cluster={clusterPresent}, user={ocpUserPresent}, pw={ocpPasswdPresent}, token={ocpTokenPresent}")
+                print("Invalid OCP credential argument combination provided.", file=sys.stderr)
                 parser.print_help(sys.stderr)
                 results = None
     return results
